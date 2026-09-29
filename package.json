@@ -1,0 +1,13 @@
+{
+  "name": "global-food-delivery-platform",
+  "private": true,
+  "packageManager": "pnpm@10.17.1",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r --parallel dev",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck"
+  }
+}
