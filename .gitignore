@@ -9,3 +9,8 @@ coverage/
 .DS_Store
 .idea/
 .vscode/
+.cursor/
+*.tsbuildinfo
+dist/
+.next/
+out/
