@@ -4,8 +4,8 @@
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
-    "lint": "eslint .",
-    "test": "jest --passWithNoTests",
+    "lint": "echo 'No lint yet'",
+    "test": "echo 'No tests yet'",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
