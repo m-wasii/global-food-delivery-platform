@@ -18,7 +18,7 @@ This repository implements the **Global Food Delivery Platform** project tracked
 
 ## Development
 
-See the documentation under `docs/` as the project foundation is built.
+Local environment setup (env file, Postgres, Redis): see [docs/development/environment.md](docs/development/environment.md).
 
 ## Status
 
