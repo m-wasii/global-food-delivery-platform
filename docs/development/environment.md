@@ -4,18 +4,23 @@
 
 1. From the repo root, copy the example env file:
   ```bash
-  bash: cp .env.example .env
+  cp .env.example .env
   ```
   ```
   PowerShell: Copy-Item .env.example .env
 
   ```
 2. Start PostgreSQL and Redis:
-  ```bash
+  ```
    docker compose up -d
   ```
+  Compose reads `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` from `.env`.
+3. Generate the Prisma client and run migrations (from repo root):
 
-Compose reads `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` from `.env`.
+```
+pnpm db:generate
+pnpm db:migrate -- --name init
+```
 
 ## Variables
 

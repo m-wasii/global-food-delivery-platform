@@ -1,0 +1,25 @@
+{
+  "name": "@food-delivery/database",
+  "private": true,
+  "version": "0.0.0",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "echo 'No build yet'",
+    "lint": "echo 'No lint yet'",
+    "test": "echo 'No tests yet'",
+    "typecheck": "echo 'No typecheck yet'",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "prisma": "7.10.0"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "dotenv": "^18.0.5",
+    "pg": "^8.23.1"
+  }
+}
