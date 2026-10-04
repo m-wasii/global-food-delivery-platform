@@ -1,7 +1,149 @@
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "postgresql"
+  provider = "postgresql"
+}
+
+enum OrderStatus {
+  PENDING
+  PLACED
+  CANCELLED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  addresses Address[]
+  orders    Order[]
+}
+
+model Address {
+  id         String  @id @default(uuid())
+  userId     String?
+  user       User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  line1      String
+  line2      String?
+  city       String
+  region     String?
+  postalCode String?
+  country    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  branch RestaurantBranch?
+  orders Order[]
+
+  @@index([userId])
+}
+
+model Restaurant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branches RestaurantBranch[]
+  menus    Menu[]
+}
+
+model RestaurantBranch {
+  id           String     @id @default(uuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  addressId    String     @unique
+  address      Address    @relation(fields: [addressId], references: [id], onDelete: Restrict)
+  name         String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  orders Order[]
+
+  @@index([restaurantId])
+}
+
+model Menu {
+  id           String     @id @default(uuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name         String
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  categories MenuCategory[]
+
+  @@index([restaurantId])
+}
+
+model MenuCategory {
+  id        String   @id @default(uuid())
+  menuId    String
+  menu      Menu     @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items MenuItem[]
+
+  @@index([menuId])
+}
+
+model MenuItem {
+  id             String       @id @default(uuid())
+  menuCategoryId String
+  menuCategory   MenuCategory @relation(fields: [menuCategoryId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  priceCents     Int
+  currency       String       @default("USD")
+  isAvailable    Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  orderItems OrderItem[]
+
+  @@index([menuCategoryId])
+}
+
+model Order {
+  id                 String            @id @default(uuid())
+  userId             String
+  user               User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  restaurantBranchId String
+  restaurantBranch   RestaurantBranch  @relation(fields: [restaurantBranchId], references: [id], onDelete: Restrict)
+  deliveryAddressId  String
+  deliveryAddress    Address           @relation(fields: [deliveryAddressId], references: [id], onDelete: Restrict)
+  status             OrderStatus       @default(PENDING)
+  currency           String            @default("USD")
+  totalCents         Int
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  items OrderItem[]
+
+  @@index([userId])
+  @@index([restaurantBranchId])
+}
+
+model OrderItem {
+  id            String    @id @default(uuid())
+  orderId       String
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId    String?
+  menuItem      MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  name          String
+  unitPriceCents Int
+  quantity      Int
+  lineTotalCents Int
+  createdAt     DateTime  @default(now())
+
+  @@index([orderId])
 }
