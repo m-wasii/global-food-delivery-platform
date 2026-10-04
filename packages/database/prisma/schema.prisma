@@ -1,7 +1,290 @@
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "postgresql"
+  provider = "postgresql"
+}
+
+enum OrderStatus {
+  PENDING
+  PLACED
+  CONFIRMED
+  PREPARING
+  READY_FOR_PICKUP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  REJECTED
+  FAILED
+}
+
+enum PaymentStatus {
+  PENDING
+  REQUIRES_ACTION
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  CANCELLED
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  STRIPE
+  ADYEN
+  PAYPAL
+  CASH
+  OTHER
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique @db.VarChar(320)
+  name      String   @db.VarChar(160)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  addresses         Address[]
+  orders            Order[]
+  paymentRecords    Payment[]
+  orderStatusEvents OrderStatusHistory[] @relation("OrderStatusActor")
+}
+
+model Address {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @db.Uuid
+  line1      String   @db.VarChar(255)
+  line2      String?  @db.VarChar(255)
+  city       String   @db.VarChar(120)
+  region     String?  @db.VarChar(120)
+  postalCode String?  @db.VarChar(32)
+  country    String   @db.VarChar(2)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+
+  user                    User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  restaurantBranch        RestaurantBranch?
+  orderDeliverySnapshots  OrderDeliveryAddress[]
+
+  @@index([userId])
+  @@index([country, city])
+}
+
+model Restaurant {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(180)
+  slug      String   @unique @db.VarChar(180)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  branches RestaurantBranch[]
+  menus    Menu[]
+}
+
+model RestaurantBranch {
+  id           String   @id @default(uuid()) @db.Uuid
+  restaurantId String   @db.Uuid
+  addressId    String   @unique @db.Uuid
+  name         String   @db.VarChar(180)
+  isActive     Boolean  @default(true)
+  acceptsOrders Boolean @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+  address    Address    @relation(fields: [addressId], references: [id], onDelete: Restrict)
+  orders     Order[]
+  branchMenus BranchMenu[]
+
+  @@index([restaurantId])
+  @@index([isActive, acceptsOrders])
+}
+
+model Menu {
+  id           String   @id @default(uuid()) @db.Uuid
+  restaurantId String   @db.Uuid
+  name         String   @db.VarChar(160)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  restaurant Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+  categories MenuCategory[]
+  branchMenus BranchMenu[]
+
+  @@index([restaurantId, isActive])
+}
+
+model BranchMenu {
+  id                 String   @id @default(uuid()) @db.Uuid
+  restaurantBranchId String   @db.Uuid
+  menuId             String   @db.Uuid
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(6)
+
+  branch RestaurantBranch @relation(fields: [restaurantBranchId], references: [id], onDelete: Restrict)
+  menu   Menu             @relation(fields: [menuId], references: [id], onDelete: Restrict)
+  items  BranchMenuItem[]
+
+  @@unique([restaurantBranchId, menuId])
+  @@index([menuId, isActive])
+}
+
+model MenuCategory {
+  id        String   @id @default(uuid()) @db.Uuid
+  menuId    String   @db.Uuid
+  name      String   @db.VarChar(120)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  menu  Menu       @relation(fields: [menuId], references: [id], onDelete: Restrict)
+  items MenuItem[]
+
+  @@index([menuId, sortOrder])
+}
+
+model MenuItem {
+  id             String   @id @default(uuid()) @db.Uuid
+  menuCategoryId String   @db.Uuid
+  name           String   @db.VarChar(180)
+  description    String?  @db.Text
+  priceCents     BigInt
+  currency       String   @default("USD") @db.VarChar(3)
+  isAvailable    Boolean  @default(true)
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  category   MenuCategory    @relation(fields: [menuCategoryId], references: [id], onDelete: Restrict)
+  branchItems BranchMenuItem[]
+  orderItems OrderItem[]
+
+  @@index([menuCategoryId, isAvailable])
+}
+
+model BranchMenuItem {
+  id            String   @id @default(uuid()) @db.Uuid
+  branchMenuId  String   @db.Uuid
+  menuItemId    String   @db.Uuid
+  priceCents    BigInt?
+  currency      String?  @db.VarChar(3)
+  isAvailable   Boolean  @default(true)
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
+
+  branchMenu BranchMenu @relation(fields: [branchMenuId], references: [id], onDelete: Restrict)
+  menuItem   MenuItem   @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+
+  @@unique([branchMenuId, menuItemId])
+  @@index([menuItemId, isAvailable])
+}
+
+model Order {
+  id                 String      @id @default(uuid()) @db.Uuid
+  userId             String      @db.Uuid
+  restaurantBranchId String      @db.Uuid
+  status             OrderStatus @default(PENDING)
+  currency           String      @db.VarChar(3)
+  subtotalCents      BigInt
+  deliveryFeeCents   BigInt      @default(0)
+  serviceFeeCents    BigInt      @default(0)
+  taxCents           BigInt      @default(0)
+  discountCents      BigInt      @default(0)
+  totalCents         BigInt
+  cancellationReason String?    @db.VarChar(500)
+  placedAt           DateTime?   @db.Timestamptz(6)
+  deliveredAt        DateTime?   @db.Timestamptz(6)
+  createdAt          DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime    @updatedAt @db.Timestamptz(6)
+
+  user                    User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  restaurantBranch        RestaurantBranch        @relation(fields: [restaurantBranchId], references: [id], onDelete: Restrict)
+  deliveryAddressSnapshot OrderDeliveryAddress?
+  items                   OrderItem[]
+  payments                Payment[]
+  statusHistory           OrderStatusHistory[]
+
+  @@index([userId, createdAt])
+  @@index([restaurantBranchId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+model OrderDeliveryAddress {
+  id             String   @id @default(uuid()) @db.Uuid
+  orderId        String   @unique @db.Uuid
+  sourceAddressId String? @db.Uuid
+  line1          String   @db.VarChar(255)
+  line2          String?  @db.VarChar(255)
+  city           String   @db.VarChar(120)
+  region         String?  @db.VarChar(120)
+  postalCode     String?  @db.VarChar(32)
+  country        String   @db.VarChar(2)
+  recipientName  String   @db.VarChar(160)
+  recipientPhone String   @db.VarChar(32)
+  deliveryNotes  String?  @db.VarChar(1000)
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sourceAddress Address? @relation(fields: [sourceAddressId], references: [id], onDelete: SetNull)
+}
+
+model OrderItem {
+  id             String   @id @default(uuid()) @db.Uuid
+  orderId        String   @db.Uuid
+  menuItemId     String?  @db.Uuid
+  name           String   @db.VarChar(180)
+  description    String?  @db.Text
+  unitPriceCents BigInt
+  quantity       Int
+  lineTotalCents BigInt
+  currency       String   @db.VarChar(3)
+  customizations Json?
+  specialInstructions String? @db.VarChar(1000)
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([menuItemId])
+}
+
+model Payment {
+  id                String          @id @default(uuid()) @db.Uuid
+  orderId           String          @db.Uuid
+  userId            String          @db.Uuid
+  provider          PaymentProvider
+  status            PaymentStatus   @default(PENDING)
+  amountCents       BigInt
+  currency          String          @db.VarChar(3)
+  providerPaymentId String?         @unique @db.VarChar(255)
+  idempotencyKey    String?         @unique @db.VarChar(255)
+  failureCode       String?         @db.VarChar(120)
+  failureMessage    String?         @db.VarChar(500)
+  createdAt         DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime        @updatedAt @db.Timestamptz(6)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, status])
+  @@index([userId, createdAt])
+}
+
+model OrderStatusHistory {
+  id          String      @id @default(uuid()) @db.Uuid
+  orderId     String      @db.Uuid
+  fromStatus  OrderStatus?
+  toStatus    OrderStatus
+  actorUserId String?     @db.Uuid
+  note        String?     @db.VarChar(500)
+  createdAt   DateTime    @default(now()) @db.Timestamptz(6)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor User? @relation("OrderStatusActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@index([actorUserId])
 }
