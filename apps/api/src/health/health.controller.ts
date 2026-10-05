@@ -1,13 +1,17 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Res } from '@nestjs/common';
+import type { Response } from 'express';
+import { HealthService } from './health.service';
 
 @Controller('health')
 export class HealthController {
+  constructor(private readonly healthService: HealthService) {}
+
   @Get()
-  getHealth() {
-    return {
-      status: 'ok',
-      service: 'api',
-      timestamp: new Date().toISOString(),
-    };
+  async getHealth(@Res({ passthrough: true }) res: Response) {
+    const body = await this.healthService.check();
+    if (body.status === 'error') {
+      res.status(503);
+    }
+    return body;
   }
 }

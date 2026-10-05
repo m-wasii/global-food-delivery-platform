@@ -15,10 +15,12 @@ Default port is `3001` (`API_PORT` overrides it).
 ## Health
 
 ```bash
-curl http://localhost:3001/health
+curl.exe -i http://localhost:3001/health
 ```
 
-Expect a JSON payload with `status: "ok"`.
+The JSON includes `checks.database` and `checks.redis` (`up` or `down`). When both are up, `status` is `"ok"` and the response is HTTP 200. If either dependency is down, `status` is `"error"` and the response is HTTP 503.
+
+On Windows PowerShell use `curl.exe`, not `curl` (`curl` is an alias for `Invoke-WebRequest`).
 
 ## Add a module
 
