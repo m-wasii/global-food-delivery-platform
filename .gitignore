@@ -10,6 +10,10 @@ coverage/
 .idea/
 .vscode/
 .cursor/
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
 *.tsbuildinfo
 dist/
 .next/

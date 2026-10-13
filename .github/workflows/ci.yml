@@ -19,10 +19,11 @@ jobs:
         with:
           node-version: 26
           cache: pnpm
-      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
         env:
           DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+      - run: pnpm build
