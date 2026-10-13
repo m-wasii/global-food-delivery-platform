@@ -19,7 +19,7 @@
 
 ```
 pnpm db:generate
-pnpm db:migrate -- --name init
+pnpm db:migrate
 ```
 
 ## Variables
