@@ -13,20 +13,35 @@ enum OrderStatus {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String    @id @default(uuid())
+  email           String    @unique
+  name            String
+  passwordHash    String
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  addresses Address[]
-  orders    Order[]
+  addresses               Address[]
+  orders                  Order[]
+  emailVerificationTokens EmailVerificationToken[]
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model Address {
-  id         String  @id @default(uuid())
+  id         String   @id @default(uuid())
   userId     String?
-  user       User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   line1      String
   line2      String?
   city       String
@@ -114,18 +129,18 @@ model MenuItem {
 }
 
 model Order {
-  id                 String            @id @default(uuid())
+  id                 String           @id @default(uuid())
   userId             String
-  user               User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user               User             @relation(fields: [userId], references: [id], onDelete: Restrict)
   restaurantBranchId String
-  restaurantBranch   RestaurantBranch  @relation(fields: [restaurantBranchId], references: [id], onDelete: Restrict)
+  restaurantBranch   RestaurantBranch @relation(fields: [restaurantBranchId], references: [id], onDelete: Restrict)
   deliveryAddressId  String
-  deliveryAddress    Address           @relation(fields: [deliveryAddressId], references: [id], onDelete: Restrict)
-  status             OrderStatus       @default(PENDING)
-  currency           String            @default("USD")
+  deliveryAddress    Address          @relation(fields: [deliveryAddressId], references: [id], onDelete: Restrict)
+  status             OrderStatus      @default(PENDING)
+  currency           String           @default("USD")
   totalCents         Int
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
   items OrderItem[]
 
@@ -134,16 +149,16 @@ model Order {
 }
 
 model OrderItem {
-  id            String    @id @default(uuid())
-  orderId       String
-  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  menuItemId    String?
-  menuItem      MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
-  name          String
+  id             String    @id @default(uuid())
+  orderId        String
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId     String?
+  menuItem       MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  name           String
   unitPriceCents Int
-  quantity      Int
+  quantity       Int
   lineTotalCents Int
-  createdAt     DateTime  @default(now())
+  createdAt      DateTime  @default(now())
 
   @@index([orderId])
 }
