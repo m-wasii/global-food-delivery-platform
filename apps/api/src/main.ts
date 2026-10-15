@@ -2,6 +2,7 @@ import path from 'node:path';
 import { config } from 'dotenv';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 
 config({ path: path.resolve(__dirname, '../../../.env') });
 
@@ -14,6 +15,7 @@ async function bootstrap() {
   app.useGlobalFilters(new AllExceptionsFilter());
   app.enableShutdownHooks();
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.use(cookieParser());
 
   const swaggerConfig = new DocumentBuilder()
   .setTitle('EatWave API')
