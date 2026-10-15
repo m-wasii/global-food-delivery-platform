@@ -1,15 +1,76 @@
 import { prisma, Prisma } from '@food-delivery/database';
 import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
 import { PasswordService } from './password.service';
-import { EmailVerificationTokenService } from './email-verification-token.service';
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { TokenHashService } from './token-hash.service';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly passwordService: PasswordService,
-    private readonly emailVerificationTokenService: EmailVerificationTokenService,
+    private readonly tokenHashService: TokenHashService,
   ) {}
+
+  async login(dto: LoginDto) {
+    const email = dto.email.trim().toLowerCase();
+    const rememberMe = dto.rememberMe ?? false;
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const passwordOk = await this.passwordService.verify(user.passwordHash, dto.password);
+    if (!passwordOk) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    if (!user.emailVerifiedAt) {
+      throw new ForbiddenException('Verify your email before logging in');
+    }
+
+    const { rawToken, tokenHash } = this.tokenHashService.createToken();
+    const ttlMs = rememberMe
+      ? 1000 * 60 * 60 * 24 * 30
+      : 1000 * 60 * 60 * 24;
+    const expiresAt = new Date(Date.now() + ttlMs);
+
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+        rememberMe,
+      },
+    });
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+      },
+      rawToken,
+      rememberMe,
+    };
+  }
+
+  async logout(rawToken: string | undefined) {
+    if (!rawToken){
+      return;
+    }
+
+    const tokenHash = this.tokenHashService.hashToken(rawToken);
+
+    await prisma.session.updateMany({
+      where: {
+        tokenHash,
+        revokedAt: null,
+      },
+      data: { revokedAt: new Date() },
+    });
+  }
 
   async register(dto: RegisterDto) {
     const email = dto.email.trim().toLowerCase();
@@ -28,7 +89,7 @@ export class AuthService {
             select: { id: true, email: true, name: true, createdAt: true },
         });
 
-        const { rawToken, tokenHash } = this.emailVerificationTokenService.createToken();
+        const { rawToken, tokenHash } = this.tokenHashService.createToken();
         const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
 
         await prisma.emailVerificationToken.create({
@@ -54,7 +115,7 @@ export class AuthService {
     }
   }
   async verifyEmail(rawToken: string) {
-    const tokenHash = this.emailVerificationTokenService.hashToken(rawToken);
+    const tokenHash = this.tokenHashService.hashToken(rawToken);
   
     const record = await prisma.emailVerificationToken.findUnique({
       where: { tokenHash },
@@ -89,7 +150,7 @@ export class AuthService {
     }
   
     const { rawToken, tokenHash } =
-      this.emailVerificationTokenService.createToken();
+      this.tokenHashService.createToken();
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
   
     await prisma.$transaction([
