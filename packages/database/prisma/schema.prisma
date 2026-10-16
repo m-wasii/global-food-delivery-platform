@@ -38,6 +38,40 @@ model User {
   addresses               Address[]
   orders                  Order[]
   emailVerificationTokens EmailVerificationToken[]
+  courierProfile          CourierProfile?
+  adminGrant              AdminGrant?
+  restaurantMemberships   RestaurantMembership[]
+}
+
+model CourierProfile {
+  id        String           @id @default(uuid())
+  userId    String           @unique
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    CapabilityStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
+model AdminGrant {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  grantedAt DateTime @default(now())
+}
+
+model RestaurantMembership {
+  id           String                   @id @default(uuid())
+  userId       String
+  user         User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurantId String
+  restaurant   Restaurant               @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  role         RestaurantMembershipRole
+  status       CapabilityStatus         @default(PENDING)
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  @@unique([userId, restaurantId])
+  @@index([restaurantId])
 }
 
 model EmailVerificationToken {
@@ -72,14 +106,15 @@ model Address {
 }
 
 model Restaurant {
-  id        String   @id @default(uuid())
-  name      String
-  slug      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  branches RestaurantBranch[]
-  menus    Menu[]
+  branches    RestaurantBranch[]
+  menus       Menu[]
+  memberships RestaurantMembership[]
 }
 
 model RestaurantBranch {
@@ -175,4 +210,15 @@ model OrderItem {
   createdAt      DateTime  @default(now())
 
   @@index([orderId])
+}
+
+enum CapabilityStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum RestaurantMembershipRole{
+  OWNER
+  STAFF
 }
