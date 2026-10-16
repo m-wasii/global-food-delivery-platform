@@ -114,6 +114,7 @@ export class AuthService {
         throw error;
     }
   }
+
   async verifyEmail(rawToken: string) {
     const tokenHash = this.tokenHashService.hashToken(rawToken);
   
@@ -173,4 +174,27 @@ export class AuthService {
     return { sent: true };
   }
 
+  async getCapabilities(userId: string) {
+    const [courier, partner, admin] = await Promise.all([
+      prisma.courierProfile.findUnique({
+        where: { userId },
+        select: { status: true },
+      }),
+      prisma.restaurantMembership.findFirst({
+        where: { userId, status: 'ACTIVE' },
+        select: { id: true },
+      }),
+      prisma.adminGrant.findUnique({
+        where: { userId },
+        select: { id: true },
+      })
+    ]);
+
+    const capabilities = ['customer'];
+    if (courier?.status === 'ACTIVE') capabilities.push('courier');
+    if (partner) capabilities.push('partner');
+    if (admin) capabilities.push('admin');
+
+    return capabilities;
+  }
 }
