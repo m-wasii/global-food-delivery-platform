@@ -16,6 +16,10 @@ async function bootstrap() {
   app.enableShutdownHooks();
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.use(cookieParser());
+  app.enableCors({
+    origin: process.env.PUBLIC_WEB_URL ?? 'http://localhost:3000',
+    credentials: true,
+  });
 
   const swaggerConfig = new DocumentBuilder()
   .setTitle('EatWave API')
