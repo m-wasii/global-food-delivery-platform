@@ -9,6 +9,13 @@ import { RequireCourierGuard, RequireAdminGuard, RequirePartnerGuard } from './r
 @Module({
     controllers: [AuthController],
     providers: [PasswordService, AuthService, TokenHashService, SessionAuthGuard, RequireCourierGuard, RequireAdminGuard, RequirePartnerGuard],
-    exports: [PasswordService, SessionAuthGuard, RequireCourierGuard, RequireAdminGuard, RequirePartnerGuard],
+    exports: [
+        PasswordService,
+        TokenHashService,
+        SessionAuthGuard,
+        RequireCourierGuard,
+        RequireAdminGuard,
+        RequirePartnerGuard,
+    ],
 })
 export class AuthModule {}
