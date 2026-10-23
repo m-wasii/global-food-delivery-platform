@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsNumber, IsOptional, IsUUID, Max, Min } from 'class-validator';
@@ -58,5 +58,13 @@ export class DiscoveryController {
       addressId: query.addressId,
       userId: req.user?.id,
     });
+  }
+
+  @Get('restaurants/:slug')
+  @ApiOperation({
+    summary: 'Public restaurant detail with active menu and ordering availability',
+  })
+  getRestaurantDetail(@Param('slug') slug: string) {
+    return this.discoveryService.getRestaurantDetail(slug);
   }
 }
