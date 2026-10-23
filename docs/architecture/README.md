@@ -7,7 +7,7 @@ The platform begins as a modular monolith. Domain boundaries are explicit inside
 ## Core domains
 
 - Identity & Users
-- Restaurant Marketplace
+- Restaurant Marketplace (see [ADR 0003](../decisions/0003-restaurant-onboarding-model.md))
 - Catalog
 - Cart & Ordering
 - Restaurant Operations

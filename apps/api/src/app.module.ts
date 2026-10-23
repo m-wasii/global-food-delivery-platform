@@ -5,9 +5,10 @@ import { RequestLoggingMiddleware } from './common/middleware/request-logging.mi
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AddressesModule } from './addresses/addresses.module';
+import { RestaurantsModule } from './restaurants/restaurants.module';
 
 @Module({
-  imports: [HealthModule, AuthModule, UsersModule, AddressesModule],
+  imports: [HealthModule, AuthModule, UsersModule, AddressesModule, RestaurantsModule],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
