@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { prisma } from '@food-delivery/database';
 import { haversineDistanceKm, isWithinDeliveryRadius } from './geo';
+import { evaluateBranchAvailability } from './availability';
 import { RestaurantsService } from './restaurants.service';
 import { MenusService } from './menus.service';
 
@@ -50,32 +51,29 @@ export class DiscoveryService {
       restaurantId: restaurant.id,
     });
 
-    let menu: Awaited<ReturnType<MenusService['getActiveMenuForRestaurant']>> | null =
-      null;
-    try {
-      menu = await this.menusService.getActiveMenuForRestaurant(restaurant.id);
-    } catch (error) {
-      if (!(error instanceof NotFoundException)) throw error;
-    }
-
-    const isAcceptingOrders = orderableBranches.length > 0;
-
-    return {
-      restaurant: {
-        id: restaurant.id,
-        name: restaurant.name,
-        slug: restaurant.slug,
-        status: restaurant.status,
-      },
-      isAcceptingOrders,
-      /** Hours land in EAT-29; availability here is branch/status based. */
-      hours: null as null,
-      branches: orderableBranches.map((branch) => ({
+    const branchesWithHours = orderableBranches.map((branch) => {
+      const availability = evaluateBranchAvailability({
+        temporarilyClosed: branch.temporarilyClosed,
+        timezone: branch.timezone,
+        weeklyHours: branch.weeklyHours,
+        exceptions: branch.exceptions,
+      });
+      return {
         id: branch.id,
         name: branch.name,
         deliveryRadiusKm: Number(branch.deliveryRadiusKm),
         latitude: Number(branch.latitude),
         longitude: Number(branch.longitude),
+        timezone: branch.timezone,
+        temporarilyClosed: branch.temporarilyClosed,
+        isOpen: availability.isOpen,
+        availabilityReason: availability.reason,
+        weeklyHours: branch.weeklyHours.map((h) => ({
+          dayOfWeek: h.dayOfWeek,
+          openTimeMinutes: h.openTimeMinutes,
+          closeTimeMinutes: h.closeTimeMinutes,
+          isClosed: h.isClosed,
+        })),
         operatingCity: {
           id: branch.operatingCity.id,
           name: branch.operatingCity.name,
@@ -90,7 +88,37 @@ export class DiscoveryService {
           postalCode: branch.address.postalCode,
           country: branch.address.country,
         },
+      };
+    });
+
+    let menu: Awaited<ReturnType<MenusService['getActiveMenuForRestaurant']>> | null =
+      null;
+    try {
+      menu = await this.menusService.getActiveMenuForRestaurant(restaurant.id);
+    } catch (error) {
+      if (!(error instanceof NotFoundException)) throw error;
+    }
+
+    const openBranches = branchesWithHours.filter((b) => b.isOpen);
+    const isAcceptingOrders = openBranches.length > 0;
+
+    return {
+      restaurant: {
+        id: restaurant.id,
+        name: restaurant.name,
+        slug: restaurant.slug,
+        status: restaurant.status,
+      },
+      isAcceptingOrders,
+      hours: branchesWithHours.map((b) => ({
+        branchId: b.id,
+        branchName: b.name,
+        timezone: b.timezone,
+        isOpen: b.isOpen,
+        reason: b.availabilityReason,
+        weeklyHours: b.weeklyHours,
       })),
+      branches: branchesWithHours,
       menu: menu
         ? {
             id: menu.id,
@@ -127,6 +155,14 @@ export class DiscoveryService {
     const matches: DiscoveredRestaurant[] = [];
 
     for (const branch of branches) {
+      const availability = evaluateBranchAvailability({
+        temporarilyClosed: branch.temporarilyClosed,
+        timezone: branch.timezone,
+        weeklyHours: branch.weeklyHours,
+        exceptions: branch.exceptions,
+      });
+      if (!availability.isOpen) continue;
+
       const originLat = Number(branch.latitude);
       const originLng = Number(branch.longitude);
       const radiusKm = Number(branch.deliveryRadiusKm);

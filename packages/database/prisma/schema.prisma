@@ -155,18 +155,59 @@ model RestaurantBranch {
   operatingCity      OperatingCity    @relation(fields: [operatingCityId], references: [id], onDelete: Restrict)
   name               String
   status             BranchStatus     @default(INACTIVE)
+  /// Pause ordering without deactivating the branch (temp closure).
+  temporarilyClosed  Boolean          @default(false)
+  /// IANA timezone for weekly hours evaluation (e.g. Asia/Karachi).
+  timezone           String           @default("UTC")
   latitude           Decimal?         @db.Decimal(9, 6)
   longitude          Decimal?         @db.Decimal(9, 6)
   deliveryRadiusKm   Decimal?         @db.Decimal(6, 2)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
-  orders Order[]
+  orders      Order[]
+  weeklyHours BranchWeeklyHours[]
+  exceptions  BranchAvailabilityException[]
 
   @@index([restaurantId])
   @@index([operatingCityId])
   @@index([status])
   @@index([restaurantId, status])
+}
+
+/// Weekly schedule for a branch. dayOfWeek: 0=Sunday … 6=Saturday (JS Date.getDay).
+model BranchWeeklyHours {
+  id               String           @id @default(uuid())
+  branchId         String
+  branch           RestaurantBranch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  dayOfWeek        Int
+  /// Minutes from local midnight. Ignored when isClosed.
+  openTimeMinutes  Int              @default(0)
+  closeTimeMinutes Int              @default(0)
+  isClosed         Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([branchId, dayOfWeek])
+  @@index([branchId])
+}
+
+/// Holiday / special-hours window. Inclusive calendar dates in the branch timezone.
+model BranchAvailabilityException {
+  id               String           @id @default(uuid())
+  branchId         String
+  branch           RestaurantBranch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  startDate        DateTime         @db.Date
+  endDate          DateTime         @db.Date
+  isClosed         Boolean          @default(true)
+  openTimeMinutes  Int?
+  closeTimeMinutes Int?
+  reason           String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([branchId])
+  @@index([branchId, startDate, endDate])
 }
 
 model Menu {

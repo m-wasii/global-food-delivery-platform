@@ -264,6 +264,10 @@ export class RestaurantsService {
           ...(dto.deliveryRadiusKm !== undefined
             ? { deliveryRadiusKm: new Prisma.Decimal(dto.deliveryRadiusKm) }
             : {}),
+          ...(dto.temporarilyClosed !== undefined
+            ? { temporarilyClosed: dto.temporarilyClosed }
+            : {}),
+          ...(dto.timezone !== undefined ? { timezone: dto.timezone } : {}),
         },
         include: branchInclude,
       });
@@ -290,6 +294,7 @@ export class RestaurantsService {
         restaurantStatus: branch.restaurant.status,
         branchStatus: 'ACTIVE',
         operatingCityIsActive: branch.operatingCity.isActive,
+        temporarilyClosed: branch.temporarilyClosed,
         latitude,
         longitude,
         deliveryRadiusKm,
@@ -327,6 +332,7 @@ export class RestaurantsService {
   }): Prisma.RestaurantBranchWhereInput {
     return {
       status: 'ACTIVE',
+      temporarilyClosed: false,
       latitude: { not: null },
       longitude: { not: null },
       deliveryRadiusKm: { not: null, gt: 0 },
@@ -351,6 +357,8 @@ export class RestaurantsService {
         address: true,
         operatingCity: true,
         restaurant: { select: { id: true, name: true, slug: true, status: true } },
+        weeklyHours: true,
+        exceptions: true,
       },
       orderBy: { name: 'asc' },
     });

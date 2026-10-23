@@ -23,11 +23,25 @@ interface MenuCategory {
 interface RestaurantDetail {
   restaurant: { id: string; name: string; slug: string; status: string };
   isAcceptingOrders: boolean;
-  hours: null;
+  hours: Array<{
+    branchId: string;
+    branchName: string;
+    timezone: string;
+    isOpen: boolean;
+    reason: string;
+    weeklyHours: Array<{
+      dayOfWeek: number;
+      openTimeMinutes: number;
+      closeTimeMinutes: number;
+      isClosed: boolean;
+    }>;
+  }>;
   branches: Array<{
     id: string;
     name: string;
     deliveryRadiusKm: number;
+    isOpen: boolean;
+    availabilityReason: string;
     operatingCity: { name: string; country: string };
     address: { line1: string; city: string; country: string };
   }>;
@@ -36,6 +50,14 @@ interface RestaurantDetail {
     name: string;
     categories: MenuCategory[];
   } | null;
+}
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function formatMinutes(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 function formatPrice(cents: number, currency: string): string {
@@ -121,7 +143,30 @@ export default function RestaurantDetailPage() {
         Ordering:{' '}
         {detail.isAcceptingOrders ? 'Accepting orders' : 'Not accepting orders right now'}
       </p>
-      <p>Hours: coming soon (EAT-29)</p>
+
+      {detail.hours.length > 0 ? (
+        <section>
+          <h2>Hours</h2>
+          {detail.hours.map((entry) => (
+            <div key={entry.branchId}>
+              <p>
+                {entry.branchName}: {entry.isOpen ? 'Open' : 'Closed'} ({entry.reason}) —{' '}
+                {entry.timezone}
+              </p>
+              <ul>
+                {entry.weeklyHours.map((h) => (
+                  <li key={h.dayOfWeek}>
+                    {DAY_NAMES[h.dayOfWeek]}:{' '}
+                    {h.isClosed
+                      ? 'Closed'
+                      : `${formatMinutes(h.openTimeMinutes)}–${formatMinutes(h.closeTimeMinutes)}`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </section>
+      ) : null}
 
       {detail.branches.length > 0 ? (
         <section>
@@ -130,7 +175,8 @@ export default function RestaurantDetailPage() {
             {detail.branches.map((branch) => (
               <li key={branch.id}>
                 {branch.name} — {branch.address.line1}, {branch.address.city} (
-                {branch.operatingCity.name}, up to {branch.deliveryRadiusKm} km)
+                {branch.operatingCity.name}, up to {branch.deliveryRadiusKm} km) —{' '}
+                {branch.isOpen ? 'Open' : `Closed (${branch.availabilityReason})`}
               </li>
             ))}
           </ul>

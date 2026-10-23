@@ -1,10 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -18,11 +20,17 @@ import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
 import { CreateOperatingCityDto } from './dto/create-operating-city.dto';
+import { AvailabilityService } from './availability.service';
+import { SetWeeklyHoursDto } from './dto/set-weekly-hours.dto';
+import { CreateAvailabilityExceptionDto } from './dto/create-availability-exception.dto';
 
 @ApiTags('restaurants')
 @Controller()
 export class RestaurantsController {
-  constructor(private readonly restaurantsService: RestaurantsService) {}
+  constructor(
+    private readonly restaurantsService: RestaurantsService,
+    private readonly availabilityService: AvailabilityService,
+  ) {}
 
   @Get('operating-cities')
   @ApiOperation({ summary: 'List platform operating cities (Foodpanda-style coverage)' })
@@ -134,5 +142,57 @@ export class RestaurantsController {
     @Param('branchId') branchId: string,
   ) {
     return this.restaurantsService.deactivateBranch(req.user.id, id, branchId);
+  }
+
+  @Get('restaurants/:id/branches/:branchId/availability')
+  @UseGuards(SessionAuthGuard)
+  @ApiOperation({ summary: 'Get weekly hours, exceptions, and open-now status (member)' })
+  getAvailability(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Param('branchId') branchId: string,
+  ) {
+    return this.availabilityService.getBranchAvailability(req.user.id, id, branchId);
+  }
+
+  @Put('restaurants/:id/branches/:branchId/weekly-hours')
+  @UseGuards(SessionAuthGuard)
+  @ApiOperation({ summary: 'Replace weekly opening hours (owner)' })
+  setWeeklyHours(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Param('branchId') branchId: string,
+    @Body() dto: SetWeeklyHoursDto,
+  ) {
+    return this.availabilityService.setWeeklyHours(req.user.id, id, branchId, dto);
+  }
+
+  @Post('restaurants/:id/branches/:branchId/exceptions')
+  @UseGuards(SessionAuthGuard)
+  @ApiOperation({ summary: 'Add a holiday/special-hours exception (owner)' })
+  createException(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Param('branchId') branchId: string,
+    @Body() dto: CreateAvailabilityExceptionDto,
+  ) {
+    return this.availabilityService.createException(req.user.id, id, branchId, dto);
+  }
+
+  @Delete('restaurants/:id/branches/:branchId/exceptions/:exceptionId')
+  @UseGuards(SessionAuthGuard)
+  @ApiOperation({ summary: 'Delete an availability exception (owner)' })
+  deleteException(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Param('branchId') branchId: string,
+    @Param('exceptionId') exceptionId: string,
+  ) {
+    return this.availabilityService.deleteException(
+      req.user.id,
+      id,
+      branchId,
+      exceptionId,
+    );
   }
 }
