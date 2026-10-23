@@ -1,7 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { prisma } from '@food-delivery/database';
+import { Prisma, prisma } from '@food-delivery/database';
 import { UpdateAddressDto } from './dto/update-address.dto';
 import { CreateAddressDto } from './dto/create-address.dto';
+
+function coordsFromDto(dto: { latitude?: number; longitude?: number }) {
+  return {
+    ...(dto.latitude !== undefined ? { latitude: new Prisma.Decimal(dto.latitude) } : {}),
+    ...(dto.longitude !== undefined ? { longitude: new Prisma.Decimal(dto.longitude) } : {}),
+  };
+}
 
 @Injectable()
 export class AddressesService {
@@ -35,9 +42,10 @@ export class AddressesService {
     if (!result) {
       throw new NotFoundException('Address not found');
     }
+    const { latitude, longitude, ...rest } = dto;
     const address = await prisma.address.update({
       where: { id: addressId },
-      data: { ...dto },
+      data: { ...rest, ...coordsFromDto({ latitude, longitude }) },
     });
 
     return {
@@ -114,8 +122,9 @@ export class AddressesService {
   }
 
   async createAddress(userId: string, dto: CreateAddressDto) {
+    const { latitude, longitude, ...rest } = dto;
     const address = await prisma.address.create({
-      data: { ...dto, userId },
+      data: { ...rest, ...coordsFromDto({ latitude, longitude }), userId },
     });
 
     const user = await prisma.user.findUnique({

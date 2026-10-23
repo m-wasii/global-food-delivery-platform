@@ -12,6 +12,8 @@ interface Address {
     region: string | null;
     postalCode: string | null;
     country: string;
+    latitude: string | number | null;
+    longitude: string | number | null;
 }
 
 interface AddressListResponse {
@@ -44,6 +46,8 @@ export default function AddressesPage() {
     const [region, setRegion] = useState('');
     const [postalCode, setPostalCode] = useState('');
     const [country, setCountry] = useState('');
+    const [latitude, setLatitude] = useState('');
+    const [longitude, setLongitude] = useState('');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [lastDeletedId, setLastDeletedId] = useState<string | null>(null);
 
@@ -87,6 +91,8 @@ export default function AddressesPage() {
         setRegion(address.region ?? '');
         setPostalCode(address.postalCode ?? '');
         setCountry(address.country);
+        setLatitude(address.latitude != null ? String(address.latitude) : '');
+        setLongitude(address.longitude != null ? String(address.longitude) : '');
     }
 
     async function onSubmit(e: FormEvent) {
@@ -113,6 +119,8 @@ export default function AddressesPage() {
                         ...(line2.trim() ? { line2: line2.trim() } : {}),
                         ...(region.trim() ? { region: region.trim() } : {}),
                         ...(postalCode.trim() ? { postalCode: postalCode.trim() } : {}),
+                        ...(latitude.trim() ? { latitude: Number(latitude) } : {}),
+                        ...(longitude.trim() ? { longitude: Number(longitude) } : {}),
                     }),
                 },
             );
@@ -202,6 +210,8 @@ export default function AddressesPage() {
         setRegion('');
         setPostalCode('');
         setCountry('');
+        setLatitude('');
+        setLongitude('');
     }
 
     if (status === 'loading') {
@@ -232,6 +242,22 @@ export default function AddressesPage() {
                 <label>Country</label>
                 <input type="text" value={country} onChange={(e) => setCountry(e.target.value)} />
                 <br />
+                <label>Latitude</label>
+                <input
+                    type="number"
+                    step="any"
+                    value={latitude}
+                    onChange={(e) => setLatitude(e.target.value)}
+                />
+                <br />
+                <label>Longitude</label>
+                <input
+                    type="number"
+                    step="any"
+                    value={longitude}
+                    onChange={(e) => setLongitude(e.target.value)}
+                />
+                <br />
                 <button type="submit">
                     {editingId !== null ? 'Update' : 'Add'}
                 </button>
@@ -246,6 +272,9 @@ export default function AddressesPage() {
                     <li key={address.id}>
                         {address.label ?? address.line1}
                         {address.id === defaultAddress ? ' (Active)' : null}
+                        {address.latitude == null || address.longitude == null
+                            ? ' (no pin)'
+                            : null}
                         <button type="button" onClick={() => setActive(address.id)}>
                             Set as active
                         </button>

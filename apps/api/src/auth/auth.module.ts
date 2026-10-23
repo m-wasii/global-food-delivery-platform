@@ -4,15 +4,26 @@ import { PasswordService } from './password.service';
 import { AuthService } from './auth.service';
 import { TokenHashService } from './token-hash.service';
 import { SessionAuthGuard } from './session-auth.guard';
+import { OptionalSessionAuthGuard } from './optional-session-auth.guard';
 import { RequireCourierGuard, RequireAdminGuard, RequirePartnerGuard } from './require-capability.guard';
 
 @Module({
     controllers: [AuthController],
-    providers: [PasswordService, AuthService, TokenHashService, SessionAuthGuard, RequireCourierGuard, RequireAdminGuard, RequirePartnerGuard],
+    providers: [
+        PasswordService,
+        AuthService,
+        TokenHashService,
+        SessionAuthGuard,
+        OptionalSessionAuthGuard,
+        RequireCourierGuard,
+        RequireAdminGuard,
+        RequirePartnerGuard,
+    ],
     exports: [
         PasswordService,
         TokenHashService,
         SessionAuthGuard,
+        OptionalSessionAuthGuard,
         RequireCourierGuard,
         RequireAdminGuard,
         RequirePartnerGuard,
