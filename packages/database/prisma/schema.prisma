@@ -129,12 +129,14 @@ model OperatingCity {
 }
 
 model Restaurant {
-  id        String           @id @default(uuid())
-  name      String
-  slug      String           @unique
-  status    RestaurantStatus @default(PENDING)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id          String           @id @default(uuid())
+  name        String
+  slug        String           @unique
+  status      RestaurantStatus @default(PENDING)
+  /// Free-form cuisine labels for baseline search (e.g. "Pakistani", "Pizza").
+  cuisineTags String[]         @default([])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   branches    RestaurantBranch[]
   menus       Menu[]
