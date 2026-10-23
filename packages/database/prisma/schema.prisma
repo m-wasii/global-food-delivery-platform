@@ -89,9 +89,9 @@ model EmailVerificationToken {
 }
 
 model Address {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   userId     String?
-  user       User?    @relation("UserAddresses", fields: [userId], references: [id], onDelete: Cascade)
+  user       User?     @relation("UserAddresses", fields: [userId], references: [id], onDelete: Cascade)
   label      String?
   line1      String
   line2      String?
@@ -99,43 +99,72 @@ model Address {
   region     String?
   postalCode String?
   country    String
+  /// Optional pin for delivery-radius checks (customer addresses; branch pin lives on RestaurantBranch).
+  latitude   Decimal?  @db.Decimal(9, 6)
+  longitude  Decimal?  @db.Decimal(9, 6)
   deletedAt  DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   defaultForUser User? @relation("UserDefaultAddress")
-  branch RestaurantBranch?
-  orders Order[]
+  branch         RestaurantBranch?
+  orders         Order[]
 
   @@index([userId])
   @@index([userId, deletedAt])
 }
 
+model OperatingCity {
+  id        String   @id @default(uuid())
+  name      String
+  country   String
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branches RestaurantBranch[]
+
+  @@index([country, isActive])
+}
+
 model Restaurant {
-  id          String   @id @default(uuid())
-  name        String
-  slug        String   @unique
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String           @id @default(uuid())
+  name      String
+  slug      String           @unique
+  status    RestaurantStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
   branches    RestaurantBranch[]
   menus       Menu[]
   memberships RestaurantMembership[]
+
+  @@index([status])
 }
 
 model RestaurantBranch {
-  id           String     @id @default(uuid())
-  restaurantId String
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  addressId    String     @unique
-  address      Address    @relation(fields: [addressId], references: [id], onDelete: Restrict)
-  name         String
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                 String           @id @default(uuid())
+  restaurantId       String
+  restaurant         Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  addressId          String           @unique
+  address            Address          @relation(fields: [addressId], references: [id], onDelete: Restrict)
+  operatingCityId    String
+  operatingCity      OperatingCity    @relation(fields: [operatingCityId], references: [id], onDelete: Restrict)
+  name               String
+  status             BranchStatus     @default(INACTIVE)
+  latitude           Decimal?         @db.Decimal(9, 6)
+  longitude          Decimal?         @db.Decimal(9, 6)
+  deliveryRadiusKm   Decimal?         @db.Decimal(6, 2)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
   orders Order[]
 
   @@index([restaurantId])
+  @@index([operatingCityId])
+  @@index([status])
+  @@index([restaurantId, status])
 }
 
 model Menu {
@@ -224,7 +253,18 @@ enum CapabilityStatus {
   SUSPENDED
 }
 
-enum RestaurantMembershipRole{
+enum RestaurantMembershipRole {
   OWNER
   STAFF
+}
+
+enum RestaurantStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum BranchStatus {
+  INACTIVE
+  ACTIVE
 }
