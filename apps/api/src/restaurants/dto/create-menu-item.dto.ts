@@ -4,7 +4,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  IsUrl,
+  IsUUID,
   MaxLength,
   Min,
   MinLength,
@@ -25,13 +25,11 @@ export class CreateMenuItemDto {
   description?: string;
 
   @ApiPropertyOptional({
-    example: 'https://cdn.example.com/biryani.jpg',
-    description: 'Image URL (media upload abstraction is EAT-30)',
+    description: 'MediaAsset id from POST /media (ADR 0004)',
   })
   @IsOptional()
-  @IsUrl({ require_protocol: true })
-  @MaxLength(2048)
-  imageUrl?: string;
+  @IsUUID()
+  imageMediaId?: string;
 
   @ApiProperty({ example: 1299, description: 'Price in minor units (cents)' })
   @Type(() => Number)

@@ -41,7 +41,13 @@ export class DiscoveryService {
   async getRestaurantDetail(slug: string) {
     const restaurant = await prisma.restaurant.findUnique({
       where: { slug },
-      select: { id: true, name: true, slug: true, status: true },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        status: true,
+        coverMedia: { select: { id: true, publicUrl: true, provider: true } },
+      },
     });
     if (!restaurant || restaurant.status !== 'ACTIVE') {
       throw new NotFoundException('Restaurant not found');
@@ -108,6 +114,7 @@ export class DiscoveryService {
         name: restaurant.name,
         slug: restaurant.slug,
         status: restaurant.status,
+        coverImageUrl: restaurant.coverMedia?.publicUrl ?? null,
       },
       isAcceptingOrders,
       hours: branchesWithHours.map((b) => ({
@@ -131,7 +138,8 @@ export class DiscoveryService {
                 id: item.id,
                 name: item.name,
                 description: item.description,
-                imageUrl: item.imageUrl,
+                imageMediaId: item.imageMediaId,
+                imageUrl: item.imageMedia?.publicUrl ?? null,
                 priceCents: item.priceCents,
                 currency: item.currency,
                 sortOrder: item.sortOrder,

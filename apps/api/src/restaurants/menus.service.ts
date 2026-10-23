@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@food-delivery/database';
 import { RestaurantOwnershipService } from './restaurant-ownership.service';
+import { MediaService } from '../media/media.service';
 import { CreateMenuDto } from './dto/create-menu.dto';
 import { UpdateMenuDto } from './dto/update-menu.dto';
 import { CreateMenuCategoryDto } from './dto/create-menu-category.dto';
@@ -12,14 +13,20 @@ const menuTreeInclude = {
   categories: {
     orderBy: { sortOrder: 'asc' as const },
     include: {
-      items: { orderBy: { sortOrder: 'asc' as const } },
+      items: {
+        orderBy: { sortOrder: 'asc' as const },
+        include: { imageMedia: true },
+      },
     },
   },
 };
 
 @Injectable()
 export class MenusService {
-  constructor(private readonly ownership: RestaurantOwnershipService) {}
+  constructor(
+    private readonly ownership: RestaurantOwnershipService,
+    private readonly mediaService: MediaService,
+  ) {}
 
   async createMenu(userId: string, restaurantId: string, dto: CreateMenuDto) {
     await this.ownership.assertActiveMember(userId, restaurantId);
@@ -67,6 +74,7 @@ export class MenusService {
             items: {
               where: { isAvailable: true },
               orderBy: { sortOrder: 'asc' },
+              include: { imageMedia: true },
             },
           },
         },
@@ -156,18 +164,22 @@ export class MenusService {
   ) {
     await this.ownership.assertActiveMember(userId, restaurantId);
     await this.requireCategory(restaurantId, menuId, categoryId);
+    if (dto.imageMediaId) {
+      await this.mediaService.requireExisting(dto.imageMediaId);
+    }
 
     return prisma.menuItem.create({
       data: {
         menuCategoryId: categoryId,
         name: dto.name,
         description: dto.description,
-        imageUrl: dto.imageUrl,
+        imageMediaId: dto.imageMediaId,
         priceCents: dto.priceCents,
         currency: (dto.currency ?? 'USD').toUpperCase(),
         isAvailable: dto.isAvailable ?? true,
         sortOrder: dto.sortOrder ?? 0,
       },
+      include: { imageMedia: true },
     });
   }
 
@@ -181,18 +193,22 @@ export class MenusService {
   ) {
     await this.ownership.assertActiveMember(userId, restaurantId);
     await this.requireItem(restaurantId, menuId, categoryId, itemId);
+    if (dto.imageMediaId) {
+      await this.mediaService.requireExisting(dto.imageMediaId);
+    }
 
     return prisma.menuItem.update({
       where: { id: itemId },
       data: {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
         ...(dto.description !== undefined ? { description: dto.description } : {}),
-        ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {}),
+        ...(dto.imageMediaId !== undefined ? { imageMediaId: dto.imageMediaId } : {}),
         ...(dto.priceCents !== undefined ? { priceCents: dto.priceCents } : {}),
         ...(dto.currency !== undefined ? { currency: dto.currency.toUpperCase() } : {}),
         ...(dto.isAvailable !== undefined ? { isAvailable: dto.isAvailable } : {}),
         ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
       },
+      include: { imageMedia: true },
     });
   }
 

@@ -6,9 +6,17 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AddressesModule } from './addresses/addresses.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
+import { MediaModule } from './media/media.module';
 
 @Module({
-  imports: [HealthModule, AuthModule, UsersModule, AddressesModule, RestaurantsModule],
+  imports: [
+    HealthModule,
+    AuthModule,
+    UsersModule,
+    AddressesModule,
+    RestaurantsModule,
+    MediaModule,
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
