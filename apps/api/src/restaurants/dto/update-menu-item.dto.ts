@@ -4,7 +4,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  IsUrl,
+  IsUUID,
   MaxLength,
   Min,
   MinLength,
@@ -27,15 +27,13 @@ export class UpdateMenuItemDto {
   description?: string;
 
   @ApiPropertyOptional({
-    example: 'https://cdn.example.com/biryani.jpg',
     nullable: true,
-    description: 'Pass null to clear the image URL',
+    description: 'MediaAsset id, or null to clear',
   })
   @IsOptional()
   @ValidateIf((_, value) => value !== null)
-  @IsUrl({ require_protocol: true })
-  @MaxLength(2048)
-  imageUrl?: string | null;
+  @IsUUID()
+  imageMediaId?: string | null;
 
   @ApiPropertyOptional({ example: 1299 })
   @IsOptional()

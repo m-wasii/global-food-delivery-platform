@@ -13,6 +13,7 @@ import { UpdateBranchDto } from './dto/update-branch.dto';
 import { CreateOperatingCityDto } from './dto/create-operating-city.dto';
 import { slugifyName } from './slug';
 import { isBranchOrderable } from './geo';
+import { MediaService } from '../media/media.service';
 
 const branchInclude = {
   address: true,
@@ -36,7 +37,10 @@ function normalizeCuisineTags(tags: string[] | undefined): string[] {
 
 @Injectable()
 export class RestaurantsService {
-  constructor(private readonly ownership: RestaurantOwnershipService) {}
+  constructor(
+    private readonly ownership: RestaurantOwnershipService,
+    private readonly mediaService: MediaService,
+  ) {}
 
   async createOperatingCity(dto: CreateOperatingCityDto) {
     const slug = dto.slug ?? slugifyName(dto.name);
@@ -130,6 +134,10 @@ export class RestaurantsService {
       }
     }
 
+    if (dto.coverMediaId) {
+      await this.mediaService.requireExisting(dto.coverMediaId);
+    }
+
     try {
       return await prisma.restaurant.update({
         where: { id: restaurantId },
@@ -139,7 +147,9 @@ export class RestaurantsService {
           ...(dto.cuisineTags !== undefined
             ? { cuisineTags: normalizeCuisineTags(dto.cuisineTags) }
             : {}),
+          ...(dto.coverMediaId !== undefined ? { coverMediaId: dto.coverMediaId } : {}),
         },
+        include: { coverMedia: true },
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {

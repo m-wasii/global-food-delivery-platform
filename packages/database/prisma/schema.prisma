@@ -128,21 +128,42 @@ model OperatingCity {
   @@index([country, isActive])
 }
 
+model MediaAsset {
+  id         String   @id @default(uuid())
+  /// Storage backend id (e.g. external_url, s3). Swap providers without changing FKs.
+  provider   String
+  /// Provider-specific object key; null for pure external URLs.
+  storageKey String?
+  publicUrl  String
+  mimeType   String?
+  byteSize   Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  restaurantCovers Restaurant[] @relation("RestaurantCoverMedia")
+  menuItemImages   MenuItem[]   @relation("MenuItemImageMedia")
+
+  @@index([provider])
+}
+
 model Restaurant {
-  id          String           @id @default(uuid())
-  name        String
-  slug        String           @unique
-  status      RestaurantStatus @default(PENDING)
+  id           String           @id @default(uuid())
+  name         String
+  slug         String           @unique
+  status       RestaurantStatus @default(PENDING)
   /// Free-form cuisine labels for baseline search (e.g. "Pakistani", "Pizza").
-  cuisineTags String[]         @default([])
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  cuisineTags  String[]         @default([])
+  coverMediaId String?
+  coverMedia   MediaAsset?      @relation("RestaurantCoverMedia", fields: [coverMediaId], references: [id], onDelete: SetNull)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
   branches    RestaurantBranch[]
   menus       Menu[]
   memberships RestaurantMembership[]
 
   @@index([status])
+  @@index([coverMediaId])
 }
 
 model RestaurantBranch {
@@ -244,8 +265,8 @@ model MenuItem {
   menuCategory   MenuCategory @relation(fields: [menuCategoryId], references: [id], onDelete: Cascade)
   name           String
   description    String?
-  /// External image URL until EAT-30 media abstraction.
-  imageUrl       String?
+  imageMediaId   String?
+  imageMedia     MediaAsset?  @relation("MenuItemImageMedia", fields: [imageMediaId], references: [id], onDelete: SetNull)
   priceCents     Int
   currency       String       @default("USD")
   isAvailable    Boolean      @default(true)
@@ -257,6 +278,7 @@ model MenuItem {
 
   @@index([menuCategoryId])
   @@index([menuCategoryId, sortOrder])
+  @@index([imageMediaId])
 }
 
 model Order {

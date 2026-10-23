@@ -4,9 +4,11 @@ import {
   IsArray,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 
 export class UpdateRestaurantDto {
@@ -39,4 +41,13 @@ export class UpdateRestaurantDto {
   @MinLength(1, { each: true })
   @MaxLength(40, { each: true })
   cuisineTags?: string[];
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Cover MediaAsset id from POST /media, or null to clear',
+  })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsUUID()
+  coverMediaId?: string | null;
 }
