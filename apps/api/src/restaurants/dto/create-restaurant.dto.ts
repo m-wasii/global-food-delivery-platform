@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class CreateRestaurantDto {
   @ApiProperty({ example: 'Spice Route Kitchen', minLength: 2, maxLength: 120 })
@@ -22,4 +30,16 @@ export class CreateRestaurantDto {
     message: 'slug must be lowercase kebab-case',
   })
   slug?: string;
+
+  @ApiPropertyOptional({
+    example: ['Pakistani', 'Biryani'],
+    description: 'Cuisine tags used by discovery search',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MinLength(1, { each: true })
+  @MaxLength(40, { each: true })
+  cuisineTags?: string[];
 }

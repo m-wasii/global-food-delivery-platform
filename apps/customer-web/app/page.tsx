@@ -32,6 +32,22 @@ interface Address {
   longitude: string | number | null;
 }
 
+interface SearchResult {
+  restaurant: {
+    id: string;
+    name: string;
+    slug: string;
+    cuisineTags: string[];
+  };
+  matchReasons: Array<'name' | 'cuisine' | 'menu_item'>;
+  matchedItems: Array<{
+    id: string;
+    name: string;
+    priceCents: number;
+    currency: string;
+  }>;
+}
+
 export default function Home() {
   const [cities, setCities] = useState<OperatingCity[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -41,6 +57,10 @@ export default function Home() {
   const [latitude, setLatitude] = useState('31.5204');
   const [longitude, setLongitude] = useState('74.3587');
   const [restaurants, setRestaurants] = useState<DiscoveredRestaurant[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchTotalPages, setSearchTotalPages] = useState(0);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [status, setStatus] = useState('idle');
   const [message, setMessage] = useState('');
 
@@ -83,6 +103,54 @@ export default function Home() {
     }
     void bootstrap();
   }, []);
+
+  async function runSearch(page = 1) {
+    const q = searchQuery.trim();
+    if (!q) {
+      setMessage('Enter a search query');
+      return;
+    }
+    setStatus('searching');
+    setMessage('');
+    const params = new URLSearchParams({
+      q,
+      page: String(page),
+      pageSize: '10',
+    });
+    if (operatingCityId) params.set('operatingCityId', operatingCityId);
+
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/discovery/search?${params}`);
+      if (!res.ok) {
+        setStatus('error');
+        setMessage('Search failed');
+        setSearchResults([]);
+        return;
+      }
+      const data = (await res.json()) as {
+        results: SearchResult[];
+        page: number;
+        totalPages: number;
+        total: number;
+      };
+      setSearchResults(data.results);
+      setSearchPage(data.page);
+      setSearchTotalPages(data.totalPages);
+      setStatus('ready');
+      setMessage(
+        data.total === 0 ? 'No restaurants matched that search.' : `${data.total} result(s)`,
+      );
+    } catch {
+      setStatus('error');
+      setMessage('Search failed');
+      setSearchResults([]);
+    }
+  }
+
+  async function onSearch(e: FormEvent) {
+    e.preventDefault();
+    await runSearch(1);
+  }
 
   async function onDiscover(e: FormEvent) {
     e.preventDefault();
@@ -136,7 +204,68 @@ export default function Home() {
         <Link href="/profile">Profile</Link>
       </p>
 
+      <form onSubmit={onSearch}>
+        <h2>Search</h2>
+        <label htmlFor="q">Name, cuisine, or dish</label>
+        <input
+          id="q"
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="e.g. biryani"
+          required
+        />
+        <button type="submit" disabled={status === 'searching'}>
+          {status === 'searching' ? 'Searching…' : 'Search'}
+        </button>
+      </form>
+
+      {searchResults.length > 0 ? (
+        <section>
+          <ul>
+            {searchResults.map((result) => (
+              <li key={result.restaurant.id}>
+                <Link href={`/restaurants/${result.restaurant.slug}`}>
+                  {result.restaurant.name}
+                </Link>
+                {result.restaurant.cuisineTags.length > 0
+                  ? ` — ${result.restaurant.cuisineTags.join(', ')}`
+                  : null}
+                <div>Matched: {result.matchReasons.join(', ')}</div>
+                {result.matchedItems.length > 0 ? (
+                  <ul>
+                    {result.matchedItems.map((item) => (
+                      <li key={item.id}>{item.name}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          {searchTotalPages > 1 ? (
+            <p>
+              <button
+                type="button"
+                disabled={searchPage <= 1 || status === 'searching'}
+                onClick={() => void runSearch(searchPage - 1)}
+              >
+                Previous
+              </button>{' '}
+              Page {searchPage} / {searchTotalPages}{' '}
+              <button
+                type="button"
+                disabled={searchPage >= searchTotalPages || status === 'searching'}
+                onClick={() => void runSearch(searchPage + 1)}
+              >
+                Next
+              </button>
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
       <form onSubmit={onDiscover}>
+        <h2>Nearby</h2>
         {cities.length > 0 ? (
           <>
             <label htmlFor="city">Operating city</label>

@@ -7,6 +7,7 @@ import { MenusService } from './menus.service';
 import { MenusController } from './menus.controller';
 import { DiscoveryService } from './discovery.service';
 import { DiscoveryController } from './discovery.controller';
+import { SearchService } from './search.service';
 
 @Module({
   imports: [AuthModule],
@@ -16,12 +17,14 @@ import { DiscoveryController } from './discovery.controller';
     RestaurantsService,
     MenusService,
     DiscoveryService,
+    SearchService,
   ],
   exports: [
     RestaurantOwnershipService,
     RestaurantsService,
     MenusService,
     DiscoveryService,
+    SearchService,
   ],
 })
 export class RestaurantsModule {}

@@ -19,6 +19,21 @@ const branchInclude = {
   operatingCity: true,
 } as const;
 
+function normalizeCuisineTags(tags: string[] | undefined): string[] {
+  if (!tags) return [];
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const tag of tags) {
+    const value = tag.trim();
+    if (!value) continue;
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    normalized.push(value);
+  }
+  return normalized;
+}
+
 @Injectable()
 export class RestaurantsService {
   constructor(private readonly ownership: RestaurantOwnershipService) {}
@@ -59,6 +74,7 @@ export class RestaurantsService {
           name: dto.name,
           slug,
           status: 'PENDING',
+          cuisineTags: normalizeCuisineTags(dto.cuisineTags),
         },
       });
 
@@ -120,6 +136,9 @@ export class RestaurantsService {
         data: {
           ...(dto.name !== undefined ? { name: dto.name } : {}),
           ...(dto.slug !== undefined ? { slug: dto.slug } : {}),
+          ...(dto.cuisineTags !== undefined
+            ? { cuisineTags: normalizeCuisineTags(dto.cuisineTags) }
+            : {}),
         },
       });
     } catch (error) {
