@@ -7,6 +7,7 @@ import {
 import { prisma } from '@food-delivery/database';
 import { haversineDistanceKm, isWithinDeliveryRadius } from './geo';
 import { RestaurantsService } from './restaurants.service';
+import { MenusService } from './menus.service';
 
 export interface DiscoverRestaurantsQuery {
   latitude?: number;
@@ -31,7 +32,87 @@ export interface DiscoveredRestaurant {
 
 @Injectable()
 export class DiscoveryService {
-  constructor(private readonly restaurantsService: RestaurantsService) {}
+  constructor(
+    private readonly restaurantsService: RestaurantsService,
+    private readonly menusService: MenusService,
+  ) {}
+
+  async getRestaurantDetail(slug: string) {
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { slug },
+      select: { id: true, name: true, slug: true, status: true },
+    });
+    if (!restaurant || restaurant.status !== 'ACTIVE') {
+      throw new NotFoundException('Restaurant not found');
+    }
+
+    const orderableBranches = await this.restaurantsService.listOrderableBranches({
+      restaurantId: restaurant.id,
+    });
+
+    let menu: Awaited<ReturnType<MenusService['getActiveMenuForRestaurant']>> | null =
+      null;
+    try {
+      menu = await this.menusService.getActiveMenuForRestaurant(restaurant.id);
+    } catch (error) {
+      if (!(error instanceof NotFoundException)) throw error;
+    }
+
+    const isAcceptingOrders = orderableBranches.length > 0;
+
+    return {
+      restaurant: {
+        id: restaurant.id,
+        name: restaurant.name,
+        slug: restaurant.slug,
+        status: restaurant.status,
+      },
+      isAcceptingOrders,
+      /** Hours land in EAT-29; availability here is branch/status based. */
+      hours: null as null,
+      branches: orderableBranches.map((branch) => ({
+        id: branch.id,
+        name: branch.name,
+        deliveryRadiusKm: Number(branch.deliveryRadiusKm),
+        latitude: Number(branch.latitude),
+        longitude: Number(branch.longitude),
+        operatingCity: {
+          id: branch.operatingCity.id,
+          name: branch.operatingCity.name,
+          slug: branch.operatingCity.slug,
+          country: branch.operatingCity.country,
+        },
+        address: {
+          line1: branch.address.line1,
+          line2: branch.address.line2,
+          city: branch.address.city,
+          region: branch.address.region,
+          postalCode: branch.address.postalCode,
+          country: branch.address.country,
+        },
+      })),
+      menu: menu
+        ? {
+            id: menu.id,
+            name: menu.name,
+            categories: menu.categories.map((category) => ({
+              id: category.id,
+              name: category.name,
+              sortOrder: category.sortOrder,
+              items: category.items.map((item) => ({
+                id: item.id,
+                name: item.name,
+                description: item.description,
+                imageUrl: item.imageUrl,
+                priceCents: item.priceCents,
+                currency: item.currency,
+                sortOrder: item.sortOrder,
+              })),
+            })),
+          }
+        : null,
+    };
+  }
 
   async discoverRestaurants(query: DiscoverRestaurantsQuery): Promise<{
     restaurants: DiscoveredRestaurant[];
