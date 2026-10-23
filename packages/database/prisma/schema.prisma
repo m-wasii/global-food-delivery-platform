@@ -201,15 +201,19 @@ model MenuItem {
   menuCategory   MenuCategory @relation(fields: [menuCategoryId], references: [id], onDelete: Cascade)
   name           String
   description    String?
+  /// External image URL until EAT-30 media abstraction.
+  imageUrl       String?
   priceCents     Int
   currency       String       @default("USD")
   isAvailable    Boolean      @default(true)
+  sortOrder      Int          @default(0)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
   orderItems OrderItem[]
 
   @@index([menuCategoryId])
+  @@index([menuCategoryId, sortOrder])
 }
 
 model Order {
