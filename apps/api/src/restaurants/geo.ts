@@ -39,7 +39,9 @@ export function isWithinDeliveryRadius(params: {
   );
 }
 
-/** Branch is orderable only when brand, city, status, and service area are complete. */
+import { isBranchStructurallyOrderable } from './availability';
+
+/** Branch is structurally orderable (status + geo). Hours are checked separately. */
 export function isBranchOrderable(params: {
   restaurantStatus: 'PENDING' | 'ACTIVE' | 'SUSPENDED';
   branchStatus: 'INACTIVE' | 'ACTIVE';
@@ -47,14 +49,10 @@ export function isBranchOrderable(params: {
   latitude: number | null;
   longitude: number | null;
   deliveryRadiusKm: number | null;
+  temporarilyClosed?: boolean;
 }): boolean {
-  return (
-    params.restaurantStatus === 'ACTIVE' &&
-    params.branchStatus === 'ACTIVE' &&
-    params.operatingCityIsActive &&
-    params.latitude != null &&
-    params.longitude != null &&
-    params.deliveryRadiusKm != null &&
-    params.deliveryRadiusKm > 0
-  );
+  return isBranchStructurallyOrderable({
+    ...params,
+    temporarilyClosed: params.temporarilyClosed ?? false,
+  });
 }

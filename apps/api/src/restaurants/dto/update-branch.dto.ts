@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsNumber,
   IsOptional,
   IsString,
@@ -89,4 +90,21 @@ export class UpdateBranchDto {
   @Min(0.1)
   @Max(100)
   deliveryRadiusKm?: number;
+
+  @ApiPropertyOptional({
+    description: 'Pause ordering without deactivating the branch',
+  })
+  @IsOptional()
+  @IsBoolean()
+  temporarilyClosed?: boolean;
+
+  @ApiPropertyOptional({
+    example: 'Asia/Karachi',
+    description: 'IANA timezone for weekly hours',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  timezone?: string;
 }

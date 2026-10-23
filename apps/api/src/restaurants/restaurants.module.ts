@@ -8,6 +8,7 @@ import { MenusController } from './menus.controller';
 import { DiscoveryService } from './discovery.service';
 import { DiscoveryController } from './discovery.controller';
 import { SearchService } from './search.service';
+import { AvailabilityService } from './availability.service';
 
 @Module({
   imports: [AuthModule],
@@ -18,6 +19,7 @@ import { SearchService } from './search.service';
     MenusService,
     DiscoveryService,
     SearchService,
+    AvailabilityService,
   ],
   exports: [
     RestaurantOwnershipService,
@@ -25,6 +27,7 @@ import { SearchService } from './search.service';
     MenusService,
     DiscoveryService,
     SearchService,
+    AvailabilityService,
   ],
 })
 export class RestaurantsModule {}
