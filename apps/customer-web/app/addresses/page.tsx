@@ -14,6 +14,24 @@ interface Address {
     country: string;
 }
 
+interface AddressListResponse {
+    addresses: Address[];
+    defaultAddressId: string | null;
+}
+
+/** Pure fetch — no setState, so mount effect and button refresh can share it. */
+async function fetchAddressList(): Promise<AddressListResponse> {
+    const res = await fetch(`${getApiBaseUrl()}/addresses`, {
+        credentials: 'include',
+    });
+    if (!res.ok) {
+        throw new Error(
+            res.status === 401 ? 'Log in first' : 'Could not load addresses',
+        );
+    }
+    return res.json();
+}
+
 export default function AddressesPage() {
     const [status, setStatus] = useState('loading');
     const [message, setMessage] = useState('');
@@ -31,26 +49,33 @@ export default function AddressesPage() {
 
     async function load() {
         try {
-            const res = await fetch(`${getApiBaseUrl()}/addresses`, {
-                credentials: 'include',
-            });
-            if (!res.ok) {
-                setStatus('error');
-                setMessage(res.status === 401 ? 'Log in first' : 'Could not load addresses');
-                return;
-            }
-            const data = await res.json();
+            const data = await fetchAddressList();
             setAddresses(data.addresses);
             setDefaultAddress(data.defaultAddressId ?? null);
             setStatus('ready');
-        } catch {
+        } catch (error) {
             setStatus('error');
-            setMessage('Could not load addresses');
+            setMessage(
+                error instanceof Error ? error.message : 'Could not load addresses',
+            );
         }
     }
 
     useEffect(() => {
-        void load();
+        async function loadOnMount() {
+            try {
+                const data = await fetchAddressList();
+                setAddresses(data.addresses);
+                setDefaultAddress(data.defaultAddressId ?? null);
+                setStatus('ready');
+            } catch (error) {
+                setStatus('error');
+                setMessage(
+                    error instanceof Error ? error.message : 'Could not load addresses',
+                );
+            }
+        }
+        void loadOnMount();
     }, []);
 
     function startEdit(address: Address) {
