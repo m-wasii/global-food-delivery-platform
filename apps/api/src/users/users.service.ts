@@ -22,6 +22,9 @@ export class UsersService {
             data: { name: dto.name },
             select: { id: true, name: true, email: true },
         });
-        return { user };
+        return {
+            message: 'Profile updated successfully',
+            user,
+        };
     }
 }
