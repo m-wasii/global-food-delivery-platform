@@ -35,7 +35,9 @@ model User {
   updatedAt       DateTime  @updatedAt
 
   sessions                Session[]
-  addresses               Address[]
+  addresses               Address[] @relation("UserAddresses")
+  defaultAddressId        String?   @unique
+  defaultAddress          Address?  @relation("UserDefaultAddress", fields: [defaultAddressId], references: [id], onDelete: SetNull)
   orders                  Order[]
   emailVerificationTokens EmailVerificationToken[]
   courierProfile          CourierProfile?
@@ -89,20 +91,24 @@ model EmailVerificationToken {
 model Address {
   id         String   @id @default(uuid())
   userId     String?
-  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User?    @relation("UserAddresses", fields: [userId], references: [id], onDelete: Cascade)
+  label      String?
   line1      String
   line2      String?
   city       String
   region     String?
   postalCode String?
   country    String
+  deletedAt  DateTime?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  defaultForUser User? @relation("UserDefaultAddress")
   branch RestaurantBranch?
   orders Order[]
 
   @@index([userId])
+  @@index([userId, deletedAt])
 }
 
 model Restaurant {
