@@ -26,7 +26,7 @@ export class CheckoutService {
       restaurantId,
       selectedBranchId: ctx.cart.selectedBranchId,
       fulfillment: dto.fulfillment,
-      deliveryAddressId: ctx.deliveryAddressId,
+      deliveryAddressId: ctx.deliveryAddress?.id ?? null,
       radiusRechecked: ctx.radiusRechecked,
       pricing: ctx.pricing,
       canConfirm: true,
@@ -36,60 +36,21 @@ export class CheckoutService {
   async confirm(userId: string, restaurantId: string, dto: CheckoutDto) {
     const ctx = await this.prepareCheckout(userId, restaurantId, dto);
 
-    const order = await prisma.$transaction(async (tx) => {
-      const created = await tx.order.create({
-        data: {
-          userId,
-          restaurantBranchId: ctx.cart.selectedBranchId,
-          fulfillmentType: dto.fulfillment,
-          deliveryAddressId: ctx.deliveryAddressId,
-          status: 'PENDING',
-          currency: ctx.pricing.currency,
-          totalCents: ctx.pricing.total,
-          items: {
-            create: ctx.pricing.lines.map((line) => {
-              const menuItem = ctx.menuById.get(line.menuItemId);
-              return {
-                menuItemId: line.menuItemId,
-                name: menuItem?.name ?? 'Item',
-                unitPriceCents: line.unitPrice,
-                quantity: line.quantity,
-                lineTotalCents: line.lineTotal,
-              };
-            }),
-          },
-        },
-        include: { items: true },
-      });
-
-      await this.ordersService.recordCreatedInTransaction(tx, {
-        orderId: created.id,
-        actorUserId: userId,
-        toStatus: 'PENDING',
-      });
-
-      await tx.cart.delete({ where: { id: ctx.cart.id } });
-      return created;
+    const order = await this.ordersService.createFromCheckout({
+      userId,
+      restaurantId,
+      cartId: ctx.cart.id,
+      restaurantBranchId: ctx.cart.selectedBranchId,
+      restaurantName: ctx.restaurantName,
+      branchName: ctx.branchName,
+      fulfillmentType: dto.fulfillment,
+      deliveryAddress: ctx.deliveryAddress,
+      pricing: ctx.pricing,
+      menuById: ctx.menuById,
     });
 
     return {
-      order: {
-        id: order.id,
-        status: order.status,
-        fulfillmentType: order.fulfillmentType,
-        restaurantBranchId: order.restaurantBranchId,
-        deliveryAddressId: order.deliveryAddressId,
-        currency: order.currency,
-        total: order.totalCents,
-        items: order.items.map((item) => ({
-          id: item.id,
-          menuItemId: item.menuItemId,
-          name: item.name,
-          quantity: item.quantity,
-          unitPrice: item.unitPriceCents,
-          lineTotal: item.lineTotalCents,
-        })),
-      },
+      order,
       pricing: ctx.pricing,
     };
   }
@@ -110,9 +71,11 @@ export class CheckoutService {
         selectedBranch: {
           select: {
             id: true,
+            name: true,
             latitude: true,
             longitude: true,
             deliveryRadiusKm: true,
+            restaurant: { select: { id: true, name: true } },
           },
         },
       },
@@ -121,24 +84,30 @@ export class CheckoutService {
       throw new NotFoundException('Cart not found');
     }
 
-    let deliveryAddressId: string | null = null;
+    let deliveryAddress: {
+      id: string;
+      label: string | null;
+      line1: string;
+      line2: string | null;
+      city: string;
+      region: string | null;
+      postalCode: string | null;
+      country: string;
+    } | null = null;
     let radiusRechecked = false;
 
     if (dto.fulfillment === 'DELIVERY') {
-      deliveryAddressId = await this.resolveDeliveryAddressId(
-        userId,
-        dto.deliveryAddressId,
-      );
+      deliveryAddress = await this.resolveDeliveryAddress(userId, dto.deliveryAddressId);
 
       const needsRadius = shouldRecheckDeliveryRadius({
         fulfillment: 'DELIVERY',
-        deliveryAddressId,
+        deliveryAddressId: deliveryAddress.id,
         discoveryAddressId: dto.discoveryAddressId,
       });
 
       if (needsRadius) {
         radiusRechecked = true;
-        await this.assertAddressInBranchRadius(cart.selectedBranch, deliveryAddressId);
+        await this.assertAddressInBranchRadius(cart.selectedBranch, deliveryAddress.id);
       }
     }
 
@@ -161,23 +130,36 @@ export class CheckoutService {
 
     return {
       cart,
-      deliveryAddressId,
+      deliveryAddress,
       radiusRechecked,
       pricing,
       menuById,
+      restaurantName: cart.selectedBranch.restaurant.name,
+      branchName: cart.selectedBranch.name,
     };
   }
 
-  private async resolveDeliveryAddressId(userId: string, addressId?: string) {
+  private async resolveDeliveryAddress(userId: string, addressId?: string) {
+    const select = {
+      id: true,
+      label: true,
+      line1: true,
+      line2: true,
+      city: true,
+      region: true,
+      postalCode: true,
+      country: true,
+    } as const;
+
     if (addressId) {
       const address = await prisma.address.findFirst({
         where: { id: addressId, userId, deletedAt: null },
-        select: { id: true },
+        select,
       });
       if (!address) {
         throw new NotFoundException('Delivery address not found');
       }
-      return address.id;
+      return address;
     }
 
     const user = await prisma.user.findUnique({
@@ -192,12 +174,12 @@ export class CheckoutService {
 
     const stillActive = await prisma.address.findFirst({
       where: { id: user.defaultAddressId, userId, deletedAt: null },
-      select: { id: true },
+      select,
     });
     if (!stillActive) {
       throw new BadRequestException('Default delivery address is missing or deleted');
     }
-    return stillActive.id;
+    return stillActive;
   }
 
   private async assertAddressInBranchRadius(

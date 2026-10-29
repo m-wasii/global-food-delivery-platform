@@ -383,13 +383,29 @@ model Order {
   user               User             @relation(fields: [userId], references: [id], onDelete: Restrict)
   restaurantBranchId String
   restaurantBranch   RestaurantBranch @relation(fields: [restaurantBranchId], references: [id], onDelete: Restrict)
+  /// Snapshots at checkout — survive menu/branch renames (EAT-36).
+  restaurantName     String
+  branchName         String
   fulfillmentType    FulfillmentType  @default(DELIVERY)
-  /// Required for DELIVERY; null for PICKUP.
+  /// Optional live link; display/history use snapshotted address fields.
   deliveryAddressId  String?
   deliveryAddress    Address?         @relation(fields: [deliveryAddressId], references: [id], onDelete: Restrict)
+  deliveryLabel      String?
+  deliveryLine1      String?
+  deliveryLine2      String?
+  deliveryCity       String?
+  deliveryRegion     String?
+  deliveryPostalCode String?
+  deliveryCountry    String?
   status             OrderStatus      @default(PENDING)
   currency           String           @default("USD")
-  /// Minor-unit total from pricing engine at checkout.
+  /// Pricing breakdown snapshot (minor units) from `priceCart` at checkout.
+  itemsSubtotalCents Int
+  discountCents      Int              @default(0)
+  serviceFeeCents    Int              @default(0)
+  deliveryFeeCents   Int              @default(0)
+  taxCents           Int              @default(0)
+  taxRateBps         Int              @default(0)
   totalCents         Int
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
