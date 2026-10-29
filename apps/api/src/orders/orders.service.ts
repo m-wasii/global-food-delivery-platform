@@ -4,8 +4,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, prisma } from '@food-delivery/database';
+import { prisma } from '@food-delivery/database';
 import { RestaurantOwnershipService } from '../restaurants/restaurant-ownership.service';
+import type { PriceBreakdown } from '../cart/pricing';
+import {
+  buildAddressSnapshot,
+  buildOrderItemSnapshots,
+  buildPricingSnapshot,
+  type MenuItemSnapshotSource,
+} from './order-creation';
 import {
   actorMayRequestTransition,
   assertCanTransition,
@@ -14,6 +21,28 @@ import {
   type TransitionActorRole,
   allowedTargets,
 } from './order-transitions';
+
+export interface CreateOrderFromCheckoutInput {
+  userId: string;
+  restaurantId: string;
+  cartId: string;
+  restaurantBranchId: string;
+  restaurantName: string;
+  branchName: string;
+  fulfillmentType: 'DELIVERY' | 'PICKUP';
+  deliveryAddress: {
+    id: string;
+    label: string | null;
+    line1: string;
+    line2: string | null;
+    city: string;
+    region: string | null;
+    postalCode: string | null;
+    country: string;
+  } | null;
+  pricing: PriceBreakdown;
+  menuById: Map<string, MenuItemSnapshotSource>;
+}
 
 @Injectable()
 export class OrdersService {
@@ -107,21 +136,56 @@ export class OrdersService {
   }
 
   /**
-   * Record the creation event (fromStatus null → PENDING). Used inside checkout tx.
+   * Persist an immutable order from a validated checkout context, then clear the cart.
    */
-  async recordCreatedInTransaction(
-    tx: Prisma.TransactionClient,
-    params: { orderId: string; actorUserId: string; toStatus?: OrderStatusValue },
-  ) {
-    await tx.orderStatusHistory.create({
-      data: {
-        orderId: params.orderId,
-        fromStatus: null,
-        toStatus: params.toStatus ?? 'PENDING',
-        actorUserId: params.actorUserId,
-        reason: 'created',
-      },
+  async createFromCheckout(input: CreateOrderFromCheckoutInput) {
+    const itemSnapshots = buildOrderItemSnapshots(input.pricing, input.menuById);
+    const addressSnap = buildAddressSnapshot(input.deliveryAddress);
+    const pricingSnap = buildPricingSnapshot(input.pricing);
+
+    const created = await prisma.$transaction(async (tx) => {
+      const order = await tx.order.create({
+        data: {
+          userId: input.userId,
+          restaurantBranchId: input.restaurantBranchId,
+          restaurantName: input.restaurantName,
+          branchName: input.branchName,
+          fulfillmentType: input.fulfillmentType,
+          deliveryAddressId: addressSnap.deliveryAddressId,
+          deliveryLabel: addressSnap.deliveryLabel,
+          deliveryLine1: addressSnap.deliveryLine1,
+          deliveryLine2: addressSnap.deliveryLine2,
+          deliveryCity: addressSnap.deliveryCity,
+          deliveryRegion: addressSnap.deliveryRegion,
+          deliveryPostalCode: addressSnap.deliveryPostalCode,
+          deliveryCountry: addressSnap.deliveryCountry,
+          status: 'PENDING',
+          ...pricingSnap,
+          items: {
+            create: itemSnapshots,
+          },
+        },
+        include: {
+          items: true,
+          restaurantBranch: { select: { restaurantId: true, name: true } },
+        },
+      });
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: order.id,
+          fromStatus: null,
+          toStatus: 'PENDING',
+          actorUserId: input.userId,
+          reason: 'created',
+        },
+      });
+
+      await tx.cart.delete({ where: { id: input.cartId } });
+      return order;
     });
+
+    return this.serializeOrder(created);
   }
 
   private async resolveActorRole(
@@ -186,10 +250,25 @@ export class OrdersService {
     id: string;
     userId: string;
     restaurantBranchId: string;
+    restaurantName?: string;
+    branchName?: string;
     fulfillmentType: string;
     deliveryAddressId: string | null;
+    deliveryLabel?: string | null;
+    deliveryLine1?: string | null;
+    deliveryLine2?: string | null;
+    deliveryCity?: string | null;
+    deliveryRegion?: string | null;
+    deliveryPostalCode?: string | null;
+    deliveryCountry?: string | null;
     status: string;
     currency: string;
+    itemsSubtotalCents?: number;
+    discountCents?: number;
+    serviceFeeCents?: number;
+    deliveryFeeCents?: number;
+    taxCents?: number;
+    taxRateBps?: number;
     totalCents: number;
     createdAt: Date;
     updatedAt: Date;
@@ -208,10 +287,32 @@ export class OrdersService {
       userId: order.userId,
       restaurantBranchId: order.restaurantBranchId,
       restaurantId: order.restaurantBranch?.restaurantId,
+      restaurantName: order.restaurantName,
+      branchName: order.branchName,
       fulfillmentType: order.fulfillmentType,
       deliveryAddressId: order.deliveryAddressId,
+      deliveryAddress: order.deliveryLine1
+        ? {
+            label: order.deliveryLabel ?? null,
+            line1: order.deliveryLine1,
+            line2: order.deliveryLine2 ?? null,
+            city: order.deliveryCity ?? null,
+            region: order.deliveryRegion ?? null,
+            postalCode: order.deliveryPostalCode ?? null,
+            country: order.deliveryCountry ?? null,
+          }
+        : null,
       status: order.status,
       currency: order.currency,
+      pricing: {
+        itemsSubtotal: order.itemsSubtotalCents ?? order.totalCents,
+        discount: order.discountCents ?? 0,
+        serviceFee: order.serviceFeeCents ?? 0,
+        deliveryFee: order.deliveryFeeCents ?? 0,
+        tax: order.taxCents ?? 0,
+        taxRateBps: order.taxRateBps ?? 0,
+        total: order.totalCents,
+      },
       total: order.totalCents,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
