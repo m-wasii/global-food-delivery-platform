@@ -6,7 +6,7 @@ import {
 } from './media-storage.provider';
 
 /**
- * Baseline provider: persist a caller-supplied HTTPS URL.
+ * Baseline provider: persist a caller-supplied HTTPS URL only.
  * No binary upload — object storage can replace this later.
  */
 @Injectable()
@@ -20,8 +20,8 @@ export class ExternalUrlMediaStorageProvider implements MediaStorageProvider {
     } catch {
       throw new BadRequestException('Invalid media URL');
     }
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw new BadRequestException('Media URL must use http or https');
+    if (parsed.protocol !== 'https:') {
+      throw new BadRequestException('Media URL must use https');
     }
 
     return {

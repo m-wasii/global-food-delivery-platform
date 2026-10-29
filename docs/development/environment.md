@@ -33,6 +33,7 @@ pnpm db:migrate
 | `DATABASE_URL`                                        | API / database clients (same credentials as Compose) |
 | `REDIS_URL`                                           | Redis connection                                     |
 | `NEXT_PUBLIC_API_URL`                                 | Customer web → API base URL                          |
+| `PUBLIC_WEB_URL`                                      | API CORS origin + email verify links (customer web)  |
 
 
 Defaults in `.env.example` are for local development only.

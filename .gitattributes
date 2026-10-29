@@ -1,0 +1,2 @@
+# Prisma checksums migration SQL as stored on disk — keep LF everywhere.
+packages/database/prisma/migrations/**/*.sql text eol=lf

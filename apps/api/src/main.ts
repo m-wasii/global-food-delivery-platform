@@ -21,14 +21,16 @@ async function bootstrap() {
     credentials: true,
   });
 
-  const swaggerConfig = new DocumentBuilder()
-  .setTitle('EatWave API')
-  .setDescription('Global food delivery platform API')
-  .setVersion('0.1')
-  .build();
+  if (process.env.NODE_ENV !== 'production') {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('EatWave API')
+      .setDescription('Global food delivery platform API')
+      .setVersion('0.1')
+      .build();
 
-  const documentFactory = () => SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api', app, documentFactory);
+    const documentFactory = () => SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api', app, documentFactory);
+  }
 
   await app.listen(process.env.API_PORT ?? 3001);
 }

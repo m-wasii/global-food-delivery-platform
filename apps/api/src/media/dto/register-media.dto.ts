@@ -7,7 +7,7 @@ export class RegisterMediaDto {
     example: 'https://cdn.example.com/biryani.jpg',
     description: 'Public HTTPS URL registered via the active media provider',
   })
-  @IsUrl({ require_protocol: true })
+  @IsUrl({ require_protocol: true, protocols: ['https'] })
   @MaxLength(2048)
   url!: string;
 

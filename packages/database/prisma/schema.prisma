@@ -43,6 +43,7 @@ model User {
   courierProfile          CourierProfile?
   adminGrant              AdminGrant?
   restaurantMemberships   RestaurantMembership[]
+  mediaAssets             MediaAsset[]
 }
 
 model CourierProfile {
@@ -129,21 +130,25 @@ model OperatingCity {
 }
 
 model MediaAsset {
-  id         String   @id @default(uuid())
+  id               String   @id @default(uuid())
   /// Storage backend id (e.g. external_url, s3). Swap providers without changing FKs.
-  provider   String
+  provider         String
   /// Provider-specific object key; null for pure external URLs.
-  storageKey String?
-  publicUrl  String
-  mimeType   String?
-  byteSize   Int?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  storageKey       String?
+  publicUrl        String
+  mimeType         String?
+  byteSize         Int?
+  /// User who registered the asset; null for legacy rows migrated from inline URLs.
+  uploadedByUserId String?
+  uploadedBy       User?    @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   restaurantCovers Restaurant[] @relation("RestaurantCoverMedia")
   menuItemImages   MenuItem[]   @relation("MenuItemImageMedia")
 
   @@index([provider])
+  @@index([uploadedByUserId])
 }
 
 model Restaurant {

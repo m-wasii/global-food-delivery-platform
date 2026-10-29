@@ -1,6 +1,9 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { SessionAuthGuard } from '../auth/session-auth.guard';
+import {
+  SessionAuthGuard,
+  type AuthenticatedRequest,
+} from '../auth/session-auth.guard';
 import { MediaService } from './media.service';
 import { RegisterMediaDto } from './dto/register-media.dto';
 
@@ -12,10 +15,10 @@ export class MediaController {
   @Post()
   @UseGuards(SessionAuthGuard)
   @ApiOperation({
-    summary: 'Register media via the active storage provider (external URL for v1)',
+    summary: 'Register media via the active storage provider (HTTPS URL for v1)',
   })
-  register(@Body() dto: RegisterMediaDto) {
-    return this.mediaService.registerExternalUrl(dto);
+  register(@Req() req: AuthenticatedRequest, @Body() dto: RegisterMediaDto) {
+    return this.mediaService.registerExternalUrl(req.user.id, dto);
   }
 
   @Get(':id')
