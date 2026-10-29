@@ -131,6 +131,20 @@ export function evaluateBranchAvailability(
     };
   }
 
+  // Overnight windows (close <= open) continue into the next calendar day's early minutes.
+  const previousDayOfWeek = (clock.dayOfWeek + 6) % 7;
+  const previousWeekly = input.weeklyHours.find(
+    (h) => h.dayOfWeek === previousDayOfWeek,
+  );
+  if (
+    previousWeekly &&
+    !previousWeekly.isClosed &&
+    previousWeekly.closeTimeMinutes <= previousWeekly.openTimeMinutes &&
+    clock.minutesFromMidnight < previousWeekly.closeTimeMinutes
+  ) {
+    return { isOpen: true, reason: 'open' };
+  }
+
   const weekly = input.weeklyHours.find((h) => h.dayOfWeek === clock.dayOfWeek);
   if (!weekly) {
     return { isOpen: false, reason: 'no_hours_configured' };

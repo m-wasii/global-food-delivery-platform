@@ -17,7 +17,6 @@ import { AuthService } from './auth.service';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { SessionAuthGuard, type AuthenticatedRequest } from './session-auth.guard';
-import { RequireAdminGuard, RequireCourierGuard, RequirePartnerGuard } from './require-capability.guard';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -77,30 +76,9 @@ export class AuthController {
   @ApiOperation({ summary: 'Current authenticated user and derived capabilities' })
   async me(@Req() req: AuthenticatedRequest) {
     const capabilities = await this.authService.getCapabilities(req.user.id);
-    return { user: {...req.user, capabilities} };
+    return { user: { ...req.user, capabilities } };
   }
 
-  @Get('courier-only')
-  @UseGuards(SessionAuthGuard, RequireCourierGuard)
-  @ApiOperation({ summary: 'Requires an ACTIVE courier profile' })
-  courierOnly() {
-    return { ok: true };
-  }
-
-  @Get('admin-only')
-  @UseGuards(SessionAuthGuard, RequireAdminGuard)
-  @ApiOperation({ summary: 'Requires an admin grant' })
-  adminOnly() {
-    return { ok: true };
-  }
-
-  @Get('partner-only')
-  @UseGuards(SessionAuthGuard, RequirePartnerGuard)
-  @ApiOperation({ summary: 'Requires an ACTIVE restaurant membership' })
-  partnerOnly() {
-    return { ok: true };
-  }
-  
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify customer email with token from link' })

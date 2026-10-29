@@ -5,6 +5,10 @@ import { PasswordService } from './password.service';
 import { TokenHashService } from './token-hash.service';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 
+/** Valid Argon2id hash used only to equalize login timing when the user is missing. */
+const DUMMY_PASSWORD_HASH =
+  '$argon2id$v=19$m=19456,t=2,p=1$masKbf/mmRbBb174chndmA$JrlceukdCMaGck4d7NV0GfoJ94HKRD/BYTKqK9/swRY';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -17,12 +21,11 @@ export class AuthService {
     const rememberMe = dto.rememberMe ?? false;
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
-
-    const passwordOk = await this.passwordService.verify(user.passwordHash, dto.password);
-    if (!passwordOk) {
+    const passwordOk = await this.passwordService.verify(
+      user?.passwordHash ?? DUMMY_PASSWORD_HASH,
+      dto.password,
+    );
+    if (!user || !passwordOk) {
       throw new UnauthorizedException('Invalid email or password');
     }
 

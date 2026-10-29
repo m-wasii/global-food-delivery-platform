@@ -123,23 +123,26 @@ export class AddressesService {
 
   async createAddress(userId: string, dto: CreateAddressDto) {
     const { latitude, longitude, ...rest } = dto;
-    const address = await prisma.address.create({
-      data: { ...rest, ...coordsFromDto({ latitude, longitude }), userId },
-    });
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { defaultAddressId: true },
-    });
-
-    if (!user?.defaultAddressId) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { defaultAddressId: address.id },
+    return prisma.$transaction(async (tx) => {
+      const address = await tx.address.create({
+        data: { ...rest, ...coordsFromDto({ latitude, longitude }), userId },
       });
-    }
 
-    return address;
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { defaultAddressId: true },
+      });
+
+      if (!user?.defaultAddressId) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { defaultAddressId: address.id },
+        });
+      }
+
+      return address;
+    });
   }
 
   async setDefaultAddress(userId: string, addressId: string) {

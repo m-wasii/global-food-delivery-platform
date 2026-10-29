@@ -12,7 +12,7 @@ export class MediaService {
     @Inject(MEDIA_STORAGE) private readonly storage: MediaStorageProvider,
   ) {}
 
-  async registerExternalUrl(dto: RegisterMediaDto) {
+  async registerExternalUrl(userId: string, dto: RegisterMediaDto) {
     const stored = await this.storage.registerExternalUrl({
       url: dto.url,
       mimeType: dto.mimeType,
@@ -26,6 +26,7 @@ export class MediaService {
         publicUrl: stored.publicUrl,
         mimeType: stored.mimeType,
         byteSize: stored.byteSize,
+        uploadedByUserId: userId,
       },
     });
   }

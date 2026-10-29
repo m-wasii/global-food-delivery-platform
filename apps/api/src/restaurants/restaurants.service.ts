@@ -70,29 +70,47 @@ export class RestaurantsService {
 
   async createRestaurant(userId: string, dto: CreateRestaurantDto) {
     const baseSlug = dto.slug ?? slugifyName(dto.name);
-    const slug = await this.allocateUniqueRestaurantSlug(baseSlug);
+    const maxAttempts = 5;
 
-    return prisma.$transaction(async (tx) => {
-      const restaurant = await tx.restaurant.create({
-        data: {
-          name: dto.name,
-          slug,
-          status: 'PENDING',
-          cuisineTags: normalizeCuisineTags(dto.cuisineTags),
-        },
-      });
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        return await prisma.$transaction(async (tx) => {
+          const slug = await this.allocateUniqueRestaurantSlug(baseSlug, tx);
+          const restaurant = await tx.restaurant.create({
+            data: {
+              name: dto.name,
+              slug,
+              status: 'PENDING',
+              cuisineTags: normalizeCuisineTags(dto.cuisineTags),
+            },
+          });
 
-      await tx.restaurantMembership.create({
-        data: {
-          userId,
-          restaurantId: restaurant.id,
-          role: 'OWNER',
-          status: 'ACTIVE',
-        },
-      });
+          await tx.restaurantMembership.create({
+            data: {
+              userId,
+              restaurantId: restaurant.id,
+              role: 'OWNER',
+              status: 'ACTIVE',
+            },
+          });
 
-      return restaurant;
-    });
+          return restaurant;
+        });
+      } catch (error) {
+        const isSlugConflict =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002';
+        if (isSlugConflict && attempt < maxAttempts - 1) {
+          continue;
+        }
+        if (isSlugConflict) {
+          throw new ConflictException('Restaurant slug already exists');
+        }
+        throw error;
+      }
+    }
+
+    throw new ConflictException('Unable to allocate a unique restaurant slug');
   }
 
   async listMyRestaurants(userId: string) {
@@ -395,8 +413,11 @@ export class RestaurantsService {
     return city;
   }
 
-  private async allocateUniqueRestaurantSlug(base: string): Promise<string> {
-    const existing = await prisma.restaurant.findUnique({
+  private async allocateUniqueRestaurantSlug(
+    base: string,
+    db: Prisma.TransactionClient | typeof prisma = prisma,
+  ): Promise<string> {
+    const existing = await db.restaurant.findUnique({
       where: { slug: base },
       select: { id: true },
     });
@@ -404,7 +425,7 @@ export class RestaurantsService {
 
     for (let i = 2; i < 1000; i++) {
       const candidate = `${base.slice(0, 70)}-${i}`;
-      const clash = await prisma.restaurant.findUnique({
+      const clash = await db.restaurant.findUnique({
         where: { slug: candidate },
         select: { id: true },
       });

@@ -30,12 +30,22 @@ export class MenusService {
 
   async createMenu(userId: string, restaurantId: string, dto: CreateMenuDto) {
     await this.ownership.assertActiveMember(userId, restaurantId);
-    return prisma.menu.create({
-      data: {
-        restaurantId,
-        name: dto.name,
-        isActive: dto.isActive ?? true,
-      },
+    const isActive = dto.isActive ?? true;
+
+    return prisma.$transaction(async (tx) => {
+      if (isActive) {
+        await tx.menu.updateMany({
+          where: { restaurantId, isActive: true },
+          data: { isActive: false },
+        });
+      }
+      return tx.menu.create({
+        data: {
+          restaurantId,
+          name: dto.name,
+          isActive,
+        },
+      });
     });
   }
 
@@ -65,7 +75,11 @@ export class MenusService {
   /** Customer-facing tree: active menu with available items only. */
   async getActiveMenuForRestaurant(restaurantId: string) {
     const menu = await prisma.menu.findFirst({
-      where: { restaurantId, isActive: true },
+      where: {
+        restaurantId,
+        isActive: true,
+        restaurant: { status: 'ACTIVE' },
+      },
       orderBy: { createdAt: 'asc' },
       include: {
         categories: {
@@ -90,12 +104,20 @@ export class MenusService {
     await this.ownership.assertActiveMember(userId, restaurantId);
     await this.requireMenu(restaurantId, menuId);
 
-    return prisma.menu.update({
-      where: { id: menuId },
-      data: {
-        ...(dto.name !== undefined ? { name: dto.name } : {}),
-        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
-      },
+    return prisma.$transaction(async (tx) => {
+      if (dto.isActive === true) {
+        await tx.menu.updateMany({
+          where: { restaurantId, isActive: true, NOT: { id: menuId } },
+          data: { isActive: false },
+        });
+      }
+      return tx.menu.update({
+        where: { id: menuId },
+        data: {
+          ...(dto.name !== undefined ? { name: dto.name } : {}),
+          ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+        },
+      });
     });
   }
 

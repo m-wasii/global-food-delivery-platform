@@ -93,6 +93,16 @@ export class AvailabilityService {
         'openTimeMinutes and closeTimeMinutes are required when isClosed is false',
       );
     }
+    if (
+      !dto.isClosed &&
+      dto.openTimeMinutes != null &&
+      dto.closeTimeMinutes != null &&
+      dto.openTimeMinutes === dto.closeTimeMinutes
+    ) {
+      throw new BadRequestException(
+        'openTimeMinutes and closeTimeMinutes must differ when open',
+      );
+    }
 
     return prisma.branchAvailabilityException.create({
       data: {
