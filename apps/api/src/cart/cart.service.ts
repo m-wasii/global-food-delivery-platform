@@ -8,6 +8,7 @@ import { PreferredBranchService } from './preferred-branch.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { isOfferedAtBranch } from './preferred-branch';
+import { MAX_CART_LINE_QUANTITY } from './cart-validation';
 
 @Injectable()
 export class CartService {
@@ -64,10 +65,16 @@ export class CartService {
       });
 
       if (existingItem) {
+        const nextQty = existingItem.quantity + dto.quantity;
+        if (nextQty > MAX_CART_LINE_QUANTITY) {
+          throw new BadRequestException(
+            `Quantity cannot exceed ${MAX_CART_LINE_QUANTITY} for a single line`,
+          );
+        }
         await tx.cartItem.update({
           where: { id: existingItem.id },
           data: {
-            quantity: existingItem.quantity + dto.quantity,
+            quantity: nextQty,
             ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
           },
         });

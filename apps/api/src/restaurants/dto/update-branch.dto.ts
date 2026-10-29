@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
@@ -9,6 +10,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -107,4 +109,16 @@ export class UpdateBranchDto {
   @MinLength(1)
   @MaxLength(64)
   timezone?: string;
+
+  @ApiPropertyOptional({
+    example: 1500,
+    nullable: true,
+    description: 'Minimum cart subtotal in cents; null clears the minimum',
+  })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  minimumOrderCents?: number | null;
 }

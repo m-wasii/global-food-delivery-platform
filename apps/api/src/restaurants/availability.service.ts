@@ -193,6 +193,16 @@ export class AvailabilityService {
       throw new BadRequestException('Menu item is unavailable');
     }
 
+    const branchOffer = await prisma.branchMenuItemAvailability.findUnique({
+      where: { branchId_menuItemId: { branchId, menuItemId } },
+    });
+    if (!branchOffer) {
+      throw new BadRequestException('Menu item is not offered at this branch');
+    }
+    if (!branchOffer.isAvailable) {
+      throw new BadRequestException('Menu item is out of stock at this branch');
+    }
+
     return { branchId, menuItemId, reason: hours.reason };
   }
 

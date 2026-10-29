@@ -192,6 +192,8 @@ model RestaurantBranch {
   latitude           Decimal?         @db.Decimal(9, 6)
   longitude          Decimal?         @db.Decimal(9, 6)
   deliveryRadiusKm   Decimal?         @db.Decimal(6, 2)
+  /// Subtotal floor before checkout; null = no minimum.
+  minimumOrderCents  Int?
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
