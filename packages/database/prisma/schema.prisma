@@ -39,6 +39,8 @@ model User {
   defaultAddressId        String?   @unique
   defaultAddress          Address?  @relation("UserDefaultAddress", fields: [defaultAddressId], references: [id], onDelete: SetNull)
   orders                  Order[]
+  carts                   Cart[]
+  restaurantPreferences   UserRestaurantPreference[]
   emailVerificationTokens EmailVerificationToken[]
   courierProfile          CourierProfile?
   adminGrant              AdminGrant?
@@ -163,9 +165,11 @@ model Restaurant {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
-  branches    RestaurantBranch[]
-  menus       Menu[]
-  memberships RestaurantMembership[]
+  branches      RestaurantBranch[]
+  menus         Menu[]
+  memberships   RestaurantMembership[]
+  carts         Cart[]
+  preferences   UserRestaurantPreference[]
 
   @@index([status])
   @@index([coverMediaId])
@@ -191,9 +195,12 @@ model RestaurantBranch {
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
-  orders      Order[]
-  weeklyHours BranchWeeklyHours[]
-  exceptions  BranchAvailabilityException[]
+  orders               Order[]
+  weeklyHours          BranchWeeklyHours[]
+  exceptions           BranchAvailabilityException[]
+  carts                Cart[]
+  preferences          UserRestaurantPreference[]
+  menuItemAvailability BranchMenuItemAvailability[]
 
   @@index([restaurantId])
   @@index([operatingCityId])
@@ -279,11 +286,83 @@ model MenuItem {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  orderItems OrderItem[]
+  orderItems           OrderItem[]
+  cartItems            CartItem[]
+  branchAvailabilities BranchMenuItemAvailability[]
 
   @@index([menuCategoryId])
   @@index([menuCategoryId, sortOrder])
   @@index([imageMediaId])
+}
+
+/// Per user + restaurant: remembered fulfillment branch (nearest on first open, then sticky).
+model UserRestaurantPreference {
+  id              String           @id @default(uuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurantId    String
+  restaurant      Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  favoredBranchId String
+  favoredBranch   RestaurantBranch @relation(fields: [favoredBranchId], references: [id], onDelete: Restrict)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([userId, restaurantId])
+  @@index([restaurantId])
+  @@index([favoredBranchId])
+}
+
+/// Opt-in: no row ⇒ not offered at this branch. Row + isAvailable=false ⇒ out of stock here.
+model BranchMenuItemAvailability {
+  id          String           @id @default(uuid())
+  branchId    String
+  branch      RestaurantBranch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  menuItemId  String
+  menuItem    MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  isAvailable Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([branchId, menuItemId])
+  @@index([branchId])
+  @@index([menuItemId])
+}
+
+/// One cart per customer per restaurant. Exists only while it has ≥1 line.
+model Cart {
+  id               String           @id @default(uuid())
+  userId           String
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurantId     String
+  restaurant       Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  selectedBranchId String
+  selectedBranch   RestaurantBranch @relation(fields: [selectedBranchId], references: [id], onDelete: Restrict)
+  currency         String           @default("USD")
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  items CartItem[]
+
+  @@unique([userId, restaurantId])
+  @@index([userId])
+  @@index([restaurantId])
+  @@index([selectedBranchId])
+}
+
+model CartItem {
+  id         String   @id @default(uuid())
+  cartId     String
+  cart       Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+  quantity   Int
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([cartId, menuItemId])
+  @@index([cartId])
+  @@index([menuItemId])
 }
 
 model Order {

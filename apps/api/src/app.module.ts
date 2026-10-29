@@ -7,6 +7,7 @@ import { UsersModule } from './users/users.module';
 import { AddressesModule } from './addresses/addresses.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { MediaModule } from './media/media.module';
+import { CartModule } from './cart/cart.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { MediaModule } from './media/media.module';
     AddressesModule,
     RestaurantsModule,
     MediaModule,
+    CartModule,
   ],
 })
 export class AppModule implements NestModule {

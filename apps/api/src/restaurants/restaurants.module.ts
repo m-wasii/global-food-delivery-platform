@@ -10,10 +10,17 @@ import { DiscoveryService } from './discovery.service';
 import { DiscoveryController } from './discovery.controller';
 import { SearchService } from './search.service';
 import { AvailabilityService } from './availability.service';
+import { BranchMenuAvailabilityService } from './branch-menu-availability.service';
+import { BranchMenuAvailabilityController } from './branch-menu-availability.controller';
 
 @Module({
   imports: [AuthModule, MediaModule],
-  controllers: [RestaurantsController, MenusController, DiscoveryController],
+  controllers: [
+    RestaurantsController,
+    MenusController,
+    DiscoveryController,
+    BranchMenuAvailabilityController,
+  ],
   providers: [
     RestaurantOwnershipService,
     RestaurantsService,
@@ -21,6 +28,7 @@ import { AvailabilityService } from './availability.service';
     DiscoveryService,
     SearchService,
     AvailabilityService,
+    BranchMenuAvailabilityService,
   ],
   exports: [
     RestaurantOwnershipService,
@@ -29,6 +37,7 @@ import { AvailabilityService } from './availability.service';
     DiscoveryService,
     SearchService,
     AvailabilityService,
+    BranchMenuAvailabilityService,
   ],
 })
 export class RestaurantsModule {}
