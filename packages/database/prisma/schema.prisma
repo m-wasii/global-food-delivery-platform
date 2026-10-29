@@ -8,8 +8,12 @@ datasource db {
 
 enum OrderStatus {
   PENDING
-  PLACED
+  CONFIRMED
+  PREPARING
+  READY
+  COMPLETED
   CANCELLED
+  REJECTED
 }
 
 enum FulfillmentType {
@@ -44,6 +48,7 @@ model User {
   defaultAddressId        String?   @unique
   defaultAddress          Address?  @relation("UserDefaultAddress", fields: [defaultAddressId], references: [id], onDelete: SetNull)
   orders                  Order[]
+  orderStatusEvents       OrderStatusHistory[]
   carts                   Cart[]
   restaurantPreferences   UserRestaurantPreference[]
   emailVerificationTokens EmailVerificationToken[]
@@ -389,11 +394,30 @@ model Order {
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
-  items OrderItem[]
+  items   OrderItem[]
+  history OrderStatusHistory[]
 
   @@index([userId])
   @@index([restaurantBranchId])
   @@index([deliveryAddressId])
+  @@index([status])
+}
+
+/// Append-only audit of order status changes (EAT-35).
+model OrderStatusHistory {
+  id          String       @id @default(uuid())
+  orderId     String
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// Null when the order is first created into `toStatus`.
+  fromStatus  OrderStatus?
+  toStatus    OrderStatus
+  actorUserId String?
+  actor       User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  reason      String?
+  createdAt   DateTime     @default(now())
+
+  @@index([orderId, createdAt])
+  @@index([actorUserId])
 }
 
 model OrderItem {

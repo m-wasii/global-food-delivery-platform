@@ -9,6 +9,7 @@ import { RestaurantsModule } from './restaurants/restaurants.module';
 import { MediaModule } from './media/media.module';
 import { CartModule } from './cart/cart.module';
 import { CheckoutModule } from './checkout/checkout.module';
+import { OrdersModule } from './orders/orders.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { CheckoutModule } from './checkout/checkout.module';
     MediaModule,
     CartModule,
     CheckoutModule,
+    OrdersModule,
   ],
 })
 export class AppModule implements NestModule {

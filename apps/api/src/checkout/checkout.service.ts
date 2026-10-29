@@ -9,12 +9,16 @@ import { CartValidationService } from '../cart/cart-validation.service';
 import { loadPricingDefaults } from '../cart/pricing-config';
 import { priceCart } from '../cart/pricing';
 import { isWithinDeliveryRadius } from '../restaurants/geo';
+import { OrdersService } from '../orders/orders.service';
 import { CheckoutDto } from './dto/checkout.dto';
 import { shouldRecheckDeliveryRadius } from './checkout-radius';
 
 @Injectable()
 export class CheckoutService {
-  constructor(private readonly cartValidation: CartValidationService) {}
+  constructor(
+    private readonly cartValidation: CartValidationService,
+    private readonly ordersService: OrdersService,
+  ) {}
 
   async preview(userId: string, restaurantId: string, dto: CheckoutDto) {
     const ctx = await this.prepareCheckout(userId, restaurantId, dto);
@@ -56,6 +60,12 @@ export class CheckoutService {
           },
         },
         include: { items: true },
+      });
+
+      await this.ordersService.recordCreatedInTransaction(tx, {
+        orderId: created.id,
+        actorUserId: userId,
+        toStatus: 'PENDING',
       });
 
       await tx.cart.delete({ where: { id: ctx.cart.id } });
