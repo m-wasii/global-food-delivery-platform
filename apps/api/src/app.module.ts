@@ -8,6 +8,7 @@ import { AddressesModule } from './addresses/addresses.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { MediaModule } from './media/media.module';
 import { CartModule } from './cart/cart.module';
+import { CheckoutModule } from './checkout/checkout.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { CartModule } from './cart/cart.module';
     RestaurantsModule,
     MediaModule,
     CartModule,
+    CheckoutModule,
   ],
 })
 export class AppModule implements NestModule {
