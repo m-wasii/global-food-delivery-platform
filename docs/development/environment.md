@@ -34,6 +34,9 @@ pnpm db:migrate
 | `REDIS_URL`                                           | Redis connection                                     |
 | `NEXT_PUBLIC_API_URL`                                 | Customer web → API base URL                          |
 | `PUBLIC_WEB_URL`                                      | API CORS origin + email verify links (customer web)  |
+| `PRICING_SERVICE_FEE_MINOR`                           | Default service fee (minor units; ADR 0006)          |
+| `PRICING_DELIVERY_FEE_MINOR`                          | Default delivery fee (minor units; ADR 0006)         |
+| `PRICING_TAX_RATE_BPS`                                | Default tax rate in basis points (1% = 100)          |
 
 
 Defaults in `.env.example` are for local development only.
