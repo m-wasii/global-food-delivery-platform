@@ -5,11 +5,12 @@ import { CartService } from './cart.service';
 import { CartController } from './cart.controller';
 import { PreferredBranchService } from './preferred-branch.service';
 import { PreferredBranchController } from './preferred-branch.controller';
+import { CartValidationService } from './cart-validation.service';
 
 @Module({
   imports: [AuthModule, RestaurantsModule],
   controllers: [CartController, PreferredBranchController],
-  providers: [CartService, PreferredBranchService],
-  exports: [CartService, PreferredBranchService],
+  providers: [CartService, PreferredBranchService, CartValidationService],
+  exports: [CartService, PreferredBranchService, CartValidationService],
 })
 export class CartModule {}

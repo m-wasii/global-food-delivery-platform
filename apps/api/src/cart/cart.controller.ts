@@ -12,6 +12,7 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SessionAuthGuard, type AuthenticatedRequest } from '../auth/session-auth.guard';
 import { CartService } from './cart.service';
+import { CartValidationService } from './cart-validation.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { SetCartBranchDto } from './dto/set-cart-branch.dto';
@@ -20,7 +21,10 @@ import { SetCartBranchDto } from './dto/set-cart-branch.dto';
 @Controller('carts')
 @UseGuards(SessionAuthGuard)
 export class CartController {
-  constructor(private readonly cartService: CartService) {}
+  constructor(
+    private readonly cartService: CartService,
+    private readonly cartValidationService: CartValidationService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List active carts (≥1 item) for the current user' })
@@ -32,6 +36,15 @@ export class CartController {
   @ApiOperation({ summary: 'Get the cart for a restaurant' })
   get(@Req() req: AuthenticatedRequest, @Param('restaurantId') restaurantId: string) {
     return this.cartService.getCart(req.user.id, restaurantId);
+  }
+
+  @Post(':restaurantId/validate')
+  @ApiOperation({
+    summary:
+      'Soft-validate cart for checkout readiness (report-only; does not mutate). Checkout uses the hard assert.',
+  })
+  validate(@Req() req: AuthenticatedRequest, @Param('restaurantId') restaurantId: string) {
+    return this.cartValidationService.validateCart(req.user.id, restaurantId);
   }
 
   @Post(':restaurantId/items')

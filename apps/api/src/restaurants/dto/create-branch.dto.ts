@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
@@ -84,4 +85,14 @@ export class CreateBranchDto {
   @Min(0.1)
   @Max(100)
   deliveryRadiusKm?: number;
+
+  @ApiPropertyOptional({
+    example: 1500,
+    description: 'Minimum cart subtotal in cents; omit for no minimum',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  minimumOrderCents?: number;
 }

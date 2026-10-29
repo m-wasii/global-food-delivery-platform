@@ -231,6 +231,9 @@ export class RestaurantsService {
           longitude: dto.longitude != null ? new Prisma.Decimal(dto.longitude) : undefined,
           deliveryRadiusKm:
             dto.deliveryRadiusKm != null ? new Prisma.Decimal(dto.deliveryRadiusKm) : undefined,
+          ...(dto.minimumOrderCents !== undefined
+            ? { minimumOrderCents: dto.minimumOrderCents }
+            : {}),
         },
         include: branchInclude,
       });
@@ -296,6 +299,9 @@ export class RestaurantsService {
             ? { temporarilyClosed: dto.temporarilyClosed }
             : {}),
           ...(dto.timezone !== undefined ? { timezone: dto.timezone } : {}),
+          ...(dto.minimumOrderCents !== undefined
+            ? { minimumOrderCents: dto.minimumOrderCents }
+            : {}),
         },
         include: branchInclude,
       });
