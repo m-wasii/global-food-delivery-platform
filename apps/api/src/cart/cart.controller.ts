@@ -13,6 +13,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SessionAuthGuard, type AuthenticatedRequest } from '../auth/session-auth.guard';
 import { CartService } from './cart.service';
 import { CartValidationService } from './cart-validation.service';
+import { PricingService } from './pricing.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { SetCartBranchDto } from './dto/set-cart-branch.dto';
@@ -24,6 +25,7 @@ export class CartController {
   constructor(
     private readonly cartService: CartService,
     private readonly cartValidationService: CartValidationService,
+    private readonly pricingService: PricingService,
   ) {}
 
   @Get()
@@ -45,6 +47,15 @@ export class CartController {
   })
   validate(@Req() req: AuthenticatedRequest, @Param('restaurantId') restaurantId: string) {
     return this.cartValidationService.validateCart(req.user.id, restaurantId);
+  }
+
+  @Get(':restaurantId/quote')
+  @ApiOperation({
+    summary:
+      'Server-side pricing quote (minor-unit integers). Same inputs ⇒ same breakdown (ADR 0006).',
+  })
+  quote(@Req() req: AuthenticatedRequest, @Param('restaurantId') restaurantId: string) {
+    return this.pricingService.quoteCart(req.user.id, restaurantId);
   }
 
   @Post(':restaurantId/items')
