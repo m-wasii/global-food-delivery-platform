@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getApiBaseUrl } from '../../lib/config';
 
 interface OrderSummary {
@@ -88,28 +88,25 @@ export default function OrdersPage() {
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('');
 
-  const load = useCallback(async (pageNum: number) => {
-    setStatus('loading');
-    try {
-      const res = await fetch(
-        `${getApiBaseUrl()}/orders?page=${pageNum}&pageSize=20`,
-        { credentials: 'include' },
-      );
-      if (!res.ok) {
-        throw new Error(res.status === 401 ? 'Log in first' : 'Could not load orders');
-      }
-      const json = (await res.json()) as ListResponse;
-      setData(json);
-      setStatus('ready');
-    } catch (error) {
-      setStatus('error');
-      setMessage(error instanceof Error ? error.message : 'Failed to load');
-    }
-  }, []);
-
   useEffect(() => {
-    void load(page);
-  }, [load, page]);
+    async function loadOnPage() {
+      try {
+        const res = await fetch(
+          `${getApiBaseUrl()}/orders?page=${page}&pageSize=20`,
+          { credentials: 'include' },
+        );
+        if (!res.ok) {
+          throw new Error(res.status === 401 ? 'Log in first' : 'Could not load orders');
+        }
+        setData((await res.json()) as ListResponse);
+        setStatus('ready');
+      } catch (error) {
+        setStatus('error');
+        setMessage(error instanceof Error ? error.message : 'Failed to load');
+      }
+    }
+    void loadOnPage();
+  }, [page]);
 
   const { active, past } = useMemo(() => {
     const orders = data?.orders ?? [];
