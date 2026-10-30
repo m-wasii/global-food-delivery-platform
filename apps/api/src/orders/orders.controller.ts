@@ -1,14 +1,50 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional, Max, Min } from 'class-validator';
 import { SessionAuthGuard, type AuthenticatedRequest } from '../auth/session-auth.guard';
 import { OrdersService } from './orders.service';
 import { TransitionOrderDto } from './dto/transition-order.dto';
+
+class ListMyOrdersQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  pageSize?: number;
+}
 
 @ApiTags('orders')
 @Controller('orders')
 @UseGuards(SessionAuthGuard)
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
+
+  @Get()
+  @ApiOperation({
+    summary: 'List the current user’s orders (newest first; paginated)',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'pageSize', required: false, type: Number })
+  list(@Req() req: AuthenticatedRequest, @Query() query: ListMyOrdersQueryDto) {
+    return this.ordersService.listMyOrders(req.user.id, query);
+  }
 
   @Get(':orderId')
   @ApiOperation({

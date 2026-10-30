@@ -201,6 +201,8 @@ export default function Home() {
       <p>
         <Link href="/addresses">Addresses</Link>
         {' · '}
+        <Link href="/orders">Orders</Link>
+        {' · '}
         <Link href="/profile">Profile</Link>
       </p>
 
