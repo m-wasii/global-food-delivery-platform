@@ -44,9 +44,55 @@ export interface CreateOrderFromCheckoutInput {
   menuById: Map<string, MenuItemSnapshotSource>;
 }
 
+const PAST_STATUSES = ['COMPLETED', 'CANCELLED', 'REJECTED'] as const;
+
 @Injectable()
 export class OrdersService {
   constructor(private readonly ownership: RestaurantOwnershipService) {}
+
+  /**
+   * Customer order history: own orders only, newest first, thin pagination.
+   */
+  async listMyOrders(userId: string, query: { page?: number; pageSize?: number }) {
+    const page = Math.max(1, query.page ?? 1);
+    const pageSize = Math.min(50, Math.max(1, query.pageSize ?? 20));
+    const skip = (page - 1) * pageSize;
+
+    const where = { userId };
+    const [total, rows] = await Promise.all([
+      prisma.order.count({ where }),
+      prisma.order.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+        include: {
+          _count: { select: { items: true } },
+        },
+      }),
+    ]);
+
+    const orders = rows.map((order) => ({
+      id: order.id,
+      status: order.status,
+      restaurantName: order.restaurantName,
+      branchName: order.branchName,
+      fulfillmentType: order.fulfillmentType,
+      currency: order.currency,
+      total: order.totalCents,
+      itemCount: order._count.items,
+      createdAt: order.createdAt,
+      isActive: !(PAST_STATUSES as readonly string[]).includes(order.status),
+    }));
+
+    return {
+      orders,
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize) || 0,
+    };
+  }
 
   async getOrder(userId: string, orderId: string) {
     const order = await this.requireVisibleOrder(userId, orderId);
