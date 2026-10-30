@@ -14,6 +14,12 @@ import {
   type MenuItemSnapshotSource,
 } from './order-creation';
 import {
+  formatCancelHistoryReason,
+  isCustomerCancelWindowOpen,
+  loadCustomerCancelWindowMs,
+  type CancelReasonCode,
+} from './cancellation';
+import {
   actorMayRequestTransition,
   assertCanTransition,
   canTransition,
@@ -100,9 +106,17 @@ export class OrdersService {
       where: { orderId },
       orderBy: { createdAt: 'asc' },
     });
+    const role = await this.resolveActorRole(userId, {
+      userId: order.userId,
+      restaurantBranch: order.restaurantBranch,
+    });
     return {
       ...this.serializeOrder(order),
-      allowedTransitions: allowedTargets(order.status as OrderStatusValue),
+      allowedTransitions: this.allowedTransitionsFor(
+        role,
+        order.status as OrderStatusValue,
+        order.createdAt,
+      ),
       history: history.map((h) => ({
         id: h.id,
         fromStatus: h.fromStatus,
@@ -118,7 +132,7 @@ export class OrdersService {
     userId: string,
     orderId: string,
     toStatus: OrderStatusValue,
-    reason?: string,
+    opts: { cancelReason?: CancelReasonCode; reason?: string } = {},
   ) {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
@@ -155,6 +169,26 @@ export class OrdersService {
       );
     }
 
+    let historyReason: string | null = opts.reason?.trim() || null;
+    if (toStatus === 'CANCELLED') {
+      if (!opts.cancelReason) {
+        throw new BadRequestException('cancelReason is required when cancelling');
+      }
+      if (
+        role === 'customer' &&
+        !isCustomerCancelWindowOpen(
+          order.createdAt,
+          new Date(),
+          loadCustomerCancelWindowMs(),
+        )
+      ) {
+        throw new BadRequestException(
+          'Customer cancellation window has expired',
+        );
+      }
+      historyReason = formatCancelHistoryReason(opts.cancelReason, opts.reason);
+    }
+
     assertCanTransition(fromStatus, toStatus);
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -172,13 +206,31 @@ export class OrdersService {
           fromStatus,
           toStatus,
           actorUserId: userId,
-          reason: reason ?? null,
+          reason: historyReason,
         },
       });
       return next;
     });
 
     return this.getOrder(userId, updated.id);
+  }
+
+  private allowedTransitionsFor(
+    role: TransitionActorRole,
+    status: OrderStatusValue,
+    createdAt: Date,
+  ): OrderStatusValue[] {
+    let targets = allowedTargets(status).filter((to) =>
+      actorMayRequestTransition(role, to),
+    );
+    if (
+      role === 'customer' &&
+      targets.includes('CANCELLED') &&
+      !isCustomerCancelWindowOpen(createdAt, new Date(), loadCustomerCancelWindowMs())
+    ) {
+      targets = targets.filter((to) => to !== 'CANCELLED');
+    }
+    return [...targets];
   }
 
   /**
