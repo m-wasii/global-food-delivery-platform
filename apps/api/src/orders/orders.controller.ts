@@ -64,11 +64,9 @@ export class OrdersController {
     @Param('orderId') orderId: string,
     @Body() dto: TransitionOrderDto,
   ) {
-    return this.ordersService.transition(
-      req.user.id,
-      orderId,
-      dto.toStatus,
-      dto.reason,
-    );
+    return this.ordersService.transition(req.user.id, orderId, dto.toStatus, {
+      cancelReason: dto.cancelReason,
+      reason: dto.reason,
+    });
   }
 }

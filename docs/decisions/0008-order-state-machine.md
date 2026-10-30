@@ -28,7 +28,7 @@ Courier/delivery states wait for Milestone 07.
 | Partner (restaurant member) | `CONFIRMED`, `REJECTED`, `PREPARING`, `READY`, `COMPLETED`, `CANCELLED` |
 | Admin | Any status in the graph |
 
-Cancellation *windows* and rich reasons stay EAT-38; accept/reject UX stays EAT-41 — both call this machine.
+Cancellation windows + reason codes: [ADR 0010](./0010-cancellation-rules.md). Accept/reject UX stays EAT-41 — both call this machine.
 
 ## Consequences
 

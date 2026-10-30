@@ -37,6 +37,7 @@ pnpm db:migrate
 | `PRICING_SERVICE_FEE_MINOR`                           | Default service fee (minor units; ADR 0006)          |
 | `PRICING_DELIVERY_FEE_MINOR`                          | Default delivery fee (minor units; ADR 0006)         |
 | `PRICING_TAX_RATE_BPS`                                | Default tax rate in basis points (1% = 100)          |
+| `CUSTOMER_CANCEL_WINDOW_MINUTES`                      | Customer cancel window from `order.createdAt` (default 7) |
 
 
 Defaults in `.env.example` are for local development only.
