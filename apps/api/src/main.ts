@@ -16,8 +16,13 @@ async function bootstrap() {
   app.enableShutdownHooks();
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.use(cookieParser());
+  const corsOrigins = [
+    process.env.PUBLIC_WEB_URL ?? 'http://localhost:3000',
+    process.env.PARTNER_WEB_URL ?? 'http://localhost:3002',
+  ].filter((origin, index, all) => all.indexOf(origin) === index);
+
   app.enableCors({
-    origin: process.env.PUBLIC_WEB_URL ?? 'http://localhost:3000',
+    origin: corsOrigins,
     credentials: true,
   });
 
