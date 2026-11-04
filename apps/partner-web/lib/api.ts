@@ -4,6 +4,8 @@ import type {
   BranchSummary,
   MembershipRestaurant,
   PartnerOrderListResponse,
+  PartnerTransitionTarget,
+  RejectReasonCode,
 } from './types';
 import { PARTNER_QUEUE_STATUSES } from './types';
 
@@ -118,4 +120,32 @@ export async function fetchPartnerOrders(opts: {
   const data = await parseJson<PartnerOrderListResponse>(res);
   if (!data) return { ok: false, message: 'Invalid orders response' };
   return { ok: true, data };
+}
+
+export async function transitionPartnerOrder(opts: {
+  orderId: string;
+  toStatus: PartnerTransitionTarget;
+  rejectReason?: RejectReasonCode;
+  reason?: string;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const body: Record<string, string> = { toStatus: opts.toStatus };
+  if (opts.rejectReason) body.rejectReason = opts.rejectReason;
+  if (opts.reason?.trim()) body.reason = opts.reason.trim();
+
+  const res = await fetch(`${getApiBaseUrl()}/orders/${opts.orderId}/transition`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const payload = await parseJson<{ message?: string | string[] }>(res);
+    const message = Array.isArray(payload?.message)
+      ? payload.message.join(', ')
+      : (payload?.message ?? `Transition failed (${res.status})`);
+    return { ok: false, message };
+  }
+
+  return { ok: true };
 }
