@@ -20,6 +20,10 @@ import {
   type CancelReasonCode,
 } from './cancellation';
 import {
+  formatRejectHistoryReason,
+  type RejectReasonCode,
+} from './rejection';
+import {
   actorMayRequestTransition,
   assertCanTransition,
   canTransition,
@@ -223,7 +227,11 @@ export class OrdersService {
     userId: string,
     orderId: string,
     toStatus: OrderStatusValue,
-    opts: { cancelReason?: CancelReasonCode; reason?: string } = {},
+    opts: {
+      cancelReason?: CancelReasonCode;
+      rejectReason?: RejectReasonCode;
+      reason?: string;
+    } = {},
   ) {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
@@ -278,6 +286,12 @@ export class OrdersService {
         );
       }
       historyReason = formatCancelHistoryReason(opts.cancelReason, opts.reason);
+    }
+    if (toStatus === 'REJECTED') {
+      if (!opts.rejectReason) {
+        throw new BadRequestException('rejectReason is required when rejecting');
+      }
+      historyReason = formatRejectHistoryReason(opts.rejectReason, opts.reason);
     }
 
     assertCanTransition(fromStatus, toStatus);
