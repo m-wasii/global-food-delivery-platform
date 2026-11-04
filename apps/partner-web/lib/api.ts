@@ -1,5 +1,11 @@
 import { getApiBaseUrl } from './config';
-import type { AuthUser, BranchSummary, MembershipRestaurant } from './types';
+import type {
+  AuthUser,
+  BranchSummary,
+  MembershipRestaurant,
+  PartnerOrderListResponse,
+} from './types';
+import { PARTNER_QUEUE_STATUSES } from './types';
 
 async function parseJson<T>(res: Response): Promise<T | null> {
   try {
@@ -78,4 +84,38 @@ export function partnerPath(
   area: string = 'orders',
 ): string {
   return `/r/${restaurantId}/b/${branchId}/${area}`;
+}
+
+export async function fetchPartnerOrders(opts: {
+  restaurantId: string;
+  branchId: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<
+  | { ok: true; data: PartnerOrderListResponse }
+  | { ok: false; message: string }
+> {
+  const params = new URLSearchParams({
+    restaurantId: opts.restaurantId,
+    branchId: opts.branchId,
+    status: PARTNER_QUEUE_STATUSES.join(','),
+    page: String(opts.page ?? 1),
+    pageSize: String(opts.pageSize ?? 50),
+  });
+
+  const res = await fetch(`${getApiBaseUrl()}/partner/orders?${params}`, {
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    const body = await parseJson<{ message?: string | string[] }>(res);
+    const message = Array.isArray(body?.message)
+      ? body.message.join(', ')
+      : (body?.message ?? `Could not load orders (${res.status})`);
+    return { ok: false, message };
+  }
+
+  const data = await parseJson<PartnerOrderListResponse>(res);
+  if (!data) return { ok: false, message: 'Invalid orders response' };
+  return { ok: true, data };
 }
