@@ -32,9 +32,8 @@ pnpm db:migrate
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Docker Compose Postgres                              |
 | `DATABASE_URL`                                        | API / database clients (same credentials as Compose) |
 | `REDIS_URL`                                           | Redis connection                                     |
-| `NEXT_PUBLIC_API_URL`                                 | Customer / partner web → API base URL                |
+| `NEXT_PUBLIC_API_URL`                                 | Customer web → API base URL                          |
 | `PUBLIC_WEB_URL`                                      | API CORS origin + email verify links (customer web)  |
-| `PARTNER_WEB_URL`                                     | API CORS origin for partner web (`:3002`)            |
 | `PRICING_SERVICE_FEE_MINOR`                           | Default service fee (minor units; ADR 0006)          |
 | `PRICING_DELIVERY_FEE_MINOR`                          | Default delivery fee (minor units; ADR 0006)         |
 | `PRICING_TAX_RATE_BPS`                                | Default tax rate in basis points (1% = 100)          |
