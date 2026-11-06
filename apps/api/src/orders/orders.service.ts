@@ -31,7 +31,7 @@ import {
   type TransitionActorRole,
   allowedTargets,
 } from './order-transitions';
-import { deriveKitchenTiming, isNewPartnerOrder } from './kitchen-timing';
+import { isNewPartnerOrder, orderTimingFields } from './kitchen-timing';
 
 export interface CreateOrderFromCheckoutInput {
   userId: string;
@@ -164,7 +164,6 @@ export class OrdersService {
     ]);
 
     const orders = rows.map((order) => {
-      const timing = deriveKitchenTiming(order.history);
       return {
         id: order.id,
         status: order.status,
@@ -180,7 +179,7 @@ export class OrdersService {
         updatedAt: order.updatedAt,
         /** Still awaiting partner accept/reject — see ADR 0012. */
         isNew: isNewPartnerOrder(order.status),
-        timing,
+        ...orderTimingFields(order.history),
       };
     });
 
@@ -218,6 +217,7 @@ export class OrdersService {
         reason: h.reason,
         createdAt: h.createdAt,
       })),
+      ...orderTimingFields(history),
     };
   }
 

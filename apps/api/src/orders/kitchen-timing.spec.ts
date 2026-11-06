@@ -1,5 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { deriveKitchenTiming, isNewPartnerOrder } from './kitchen-timing';
+import {
+  deriveKitchenTiming,
+  isNewPartnerOrder,
+  orderTimingFields,
+} from './kitchen-timing';
+
+describe('orderTimingFields', () => {
+  it('exposes accept, prep start, ready, and rejection timestamps for analytics', () => {
+    const fields = orderTimingFields([
+      { toStatus: 'PENDING', createdAt: new Date('2026-11-04T10:00:00.000Z') },
+      { toStatus: 'CONFIRMED', createdAt: new Date('2026-11-04T10:01:00.000Z') },
+      { toStatus: 'PREPARING', createdAt: new Date('2026-11-04T10:05:00.000Z') },
+      { toStatus: 'READY', createdAt: new Date('2026-11-04T10:20:00.000Z') },
+    ]);
+
+    expect(fields.timing.acceptedAt).toBe('2026-11-04T10:01:00.000Z');
+    expect(fields.timing.preparingAt).toBe('2026-11-04T10:05:00.000Z');
+    expect(fields.timing.readyAt).toBe('2026-11-04T10:20:00.000Z');
+    expect(fields.timing.rejectedAt).toBeNull();
+  });
+
+  it('records rejection timestamp when the order was rejected', () => {
+    const fields = orderTimingFields([
+      { toStatus: 'PENDING', createdAt: new Date('2026-11-04T10:00:00.000Z') },
+      { toStatus: 'REJECTED', createdAt: new Date('2026-11-04T10:02:00.000Z') },
+    ]);
+
+    expect(fields.timing.rejectedAt).toBe('2026-11-04T10:02:00.000Z');
+    expect(fields.timing.acceptedAt).toBeNull();
+  });
+});
 
 describe('deriveKitchenTiming', () => {
   it('maps first transition to each status as ISO timestamps', () => {
