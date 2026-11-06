@@ -34,7 +34,7 @@ Talk to payment rails through a **`PaymentProvider`** Nest injectable so order/c
 | `PARTIALLY_REFUNDED` / `REFUNDED` | Refund ladder |
 | `FAILED` / `CANCELED` | Decline or voided auth |
 
-Auth-then-capture matches food delivery (hold at checkout, capture when the kitchen commits; cancel/void if rejected). Full persistence and order↔payment coupling land in **EAT-46**.
+Auth-then-capture matches food delivery (hold at checkout, capture when the kitchen commits; cancel/void if rejected). Full persistence and order↔payment coupling: [ADR 0015](./0015-payment-state-machine.md) (EAT-46).
 
 ## Explicitly deferred
 
@@ -47,5 +47,5 @@ Auth-then-capture matches food delivery (hold at checkout, capture when the kitc
 ## Consequences
 
 - Checkout/orders inject `PAYMENT_PROVIDER`, never a concrete rail.
-- No `Payment` Prisma model in this ADR — state machine + reconciliation is EAT-46.
+- `Payment` Prisma model + FSM: [ADR 0015](./0015-payment-state-machine.md).
 - Milestone 06 can add real providers behind the same token without touching order transition code.
