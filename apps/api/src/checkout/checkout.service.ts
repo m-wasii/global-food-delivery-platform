@@ -1,10 +1,17 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { prisma } from '@food-delivery/database';
+import {
+  IdempotencyConflictError,
+  runWithIdempotency,
+  type IdempotencyStore,
+} from '../common/idempotency';
+import { IDEMPOTENCY_STORE } from '../common/idempotency.tokens';
 import { CartValidationService } from '../cart/cart-validation.service';
 import { loadPricingDefaults } from '../cart/pricing-config';
 import { priceCart } from '../cart/pricing';
@@ -12,12 +19,19 @@ import { isWithinDeliveryRadius } from '../restaurants/geo';
 import { OrdersService } from '../orders/orders.service';
 import { CheckoutDto } from './dto/checkout.dto';
 import { shouldRecheckDeliveryRadius } from './checkout-radius';
+import {
+  checkoutConfirmRequest,
+  checkoutConfirmScope,
+  normalizeIdempotencyKey,
+  toHttpIdempotencyError,
+} from './checkout-idempotency';
 
 @Injectable()
 export class CheckoutService {
   constructor(
     private readonly cartValidation: CartValidationService,
     private readonly ordersService: OrdersService,
+    @Inject(IDEMPOTENCY_STORE) private readonly idempotencyStore: IdempotencyStore,
   ) {}
 
   async preview(userId: string, restaurantId: string, dto: CheckoutDto) {
@@ -33,26 +47,45 @@ export class CheckoutService {
     };
   }
 
-  async confirm(userId: string, restaurantId: string, dto: CheckoutDto) {
-    const ctx = await this.prepareCheckout(userId, restaurantId, dto);
-
-    const order = await this.ordersService.createFromCheckout({
-      userId,
-      restaurantId,
-      cartId: ctx.cart.id,
-      restaurantBranchId: ctx.cart.selectedBranchId,
-      restaurantName: ctx.restaurantName,
-      branchName: ctx.branchName,
-      fulfillmentType: dto.fulfillment,
-      deliveryAddress: ctx.deliveryAddress,
-      pricing: ctx.pricing,
-      menuById: ctx.menuById,
-    });
-
-    return {
-      order,
-      pricing: ctx.pricing,
-    };
+  async confirm(
+    userId: string,
+    restaurantId: string,
+    dto: CheckoutDto,
+    idempotencyKeyHeader?: string,
+  ) {
+    const idempotencyKey = normalizeIdempotencyKey(idempotencyKeyHeader);
+    try {
+      return await runWithIdempotency({
+        store: this.idempotencyStore,
+        scope: checkoutConfirmScope(userId, restaurantId),
+        key: idempotencyKey,
+        request: checkoutConfirmRequest(dto),
+        execute: async () => {
+          const ctx = await this.prepareCheckout(userId, restaurantId, dto);
+          const order = await this.ordersService.createFromCheckout({
+            userId,
+            restaurantId,
+            cartId: ctx.cart.id,
+            restaurantBranchId: ctx.cart.selectedBranchId,
+            restaurantName: ctx.restaurantName,
+            branchName: ctx.branchName,
+            fulfillmentType: dto.fulfillment,
+            deliveryAddress: ctx.deliveryAddress,
+            pricing: ctx.pricing,
+            menuById: ctx.menuById,
+          });
+          return {
+            order,
+            pricing: ctx.pricing,
+          };
+        },
+      });
+    } catch (err) {
+      if (err instanceof IdempotencyConflictError) {
+        throw toHttpIdempotencyError(err);
+      }
+      throw err;
+    }
   }
 
   private async prepareCheckout(userId: string, restaurantId: string, dto: CheckoutDto) {

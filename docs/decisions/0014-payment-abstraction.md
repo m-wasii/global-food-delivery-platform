@@ -21,7 +21,7 @@ Talk to payment rails through a **`PaymentProvider`** Nest injectable so order/c
 | `PaymentSnapshot` | `provider`, `providerPaymentId`, `status`, `amountCents`, `amountCapturableCents`, `amountReceivedCents`, `refundedAmountCents` |
 | `NoopPaymentProvider` | In-memory baseline (`provider = "noop"`) |
 | Amounts | Integer **minor units** + ISO 4217 currency |
-| Idempotency | `idempotencyKey` **required** on authorize/capture/cancel/refund (store/replay = EAT-47) |
+| Idempotency | `idempotencyKey` **required** on authorize/capture/cancel/refund; store/replay in [ADR 0016](./0016-idempotency-protection.md) |
 
 ### Status vocabulary
 

@@ -478,6 +478,24 @@ model PaymentStatusHistory {
   @@index([actorUserId])
 }
 
+/// Durable idempotency key store/replay (EAT-47). Stripe-aligned 24h retention.
+model IdempotencyRecord {
+  id           String   @id @default(uuid())
+  /// Logical operation, e.g. checkout.confirm:userId:restaurantId
+  scope        String
+  /// Client-supplied Idempotency-Key (≤255 chars).
+  key          String
+  requestHash  String
+  /// Null while the first attempt is still executing.
+  responseJson String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([scope, key])
+  @@index([expiresAt])
+}
+
 /// Append-only audit of order status changes (EAT-35).
 model OrderStatusHistory {
   id          String       @id @default(uuid())

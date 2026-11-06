@@ -142,11 +142,16 @@ function CheckoutPageInner() {
   async function onConfirm() {
     setStatus('confirming');
     setMessage('');
+    // One key per confirm attempt so retries/double-submit replay the same order.
+    const idempotencyKey = crypto.randomUUID();
     try {
       const res = await fetch(`${getApiBaseUrl()}/carts/${restaurantId}/checkout`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey,
+        },
         body: JSON.stringify(checkoutBody()),
       });
       const data = await res.json().catch(() => ({}));
