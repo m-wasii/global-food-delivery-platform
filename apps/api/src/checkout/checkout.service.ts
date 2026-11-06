@@ -17,6 +17,7 @@ import { loadPricingDefaults } from '../cart/pricing-config';
 import { priceCart } from '../cart/pricing';
 import { isWithinDeliveryRadius } from '../restaurants/geo';
 import { OrdersService } from '../orders/orders.service';
+import { PromotionsService } from '../promotions/promotions.service';
 import { CheckoutDto } from './dto/checkout.dto';
 import { shouldRecheckDeliveryRadius } from './checkout-radius';
 import {
@@ -31,6 +32,7 @@ export class CheckoutService {
   constructor(
     private readonly cartValidation: CartValidationService,
     private readonly ordersService: OrdersService,
+    private readonly promotionsService: PromotionsService,
     @Inject(IDEMPOTENCY_STORE) private readonly idempotencyStore: IdempotencyStore,
   ) {}
 
@@ -42,6 +44,7 @@ export class CheckoutService {
       fulfillment: dto.fulfillment,
       deliveryAddressId: ctx.deliveryAddress?.id ?? null,
       radiusRechecked: ctx.radiusRechecked,
+      promoCode: ctx.promoCode,
       pricing: ctx.pricing,
       canConfirm: true,
     };
@@ -73,9 +76,11 @@ export class CheckoutService {
             deliveryAddress: ctx.deliveryAddress,
             pricing: ctx.pricing,
             menuById: ctx.menuById,
+            promotion: ctx.promotion,
           });
           return {
             order,
+            promoCode: ctx.promoCode,
             pricing: ctx.pricing,
           };
         },
@@ -145,13 +150,28 @@ export class CheckoutService {
     }
 
     const defaults = loadPricingDefaults();
+    const lines = cart.items.map((item) => ({
+      menuItemId: item.menuItemId,
+      quantity: item.quantity,
+      unitPrice: item.menuItem.priceCents,
+    }));
+    const itemsSubtotal = lines.reduce(
+      (sum, line) => sum + line.unitPrice * line.quantity,
+      0,
+    );
+
+    const resolved = await this.promotionsService.resolveCheckoutPromotion({
+      promoCode: dto.promoCode,
+      userId,
+      restaurantId,
+      itemsSubtotal,
+      currency: cart.currency,
+    });
+
     const pricing = priceCart({
       currency: cart.currency,
-      lines: cart.items.map((item) => ({
-        menuItemId: item.menuItemId,
-        quantity: item.quantity,
-        unitPrice: item.menuItem.priceCents,
-      })),
+      lines,
+      discount: resolved.discount,
       serviceFee: defaults.serviceFee,
       deliveryFee: dto.fulfillment === 'PICKUP' ? 0 : defaults.deliveryFee,
       taxRateBps: defaults.taxRateBps,
@@ -169,6 +189,10 @@ export class CheckoutService {
       menuById,
       restaurantName: cart.selectedBranch.restaurant.name,
       branchName: cart.selectedBranch.name,
+      promoCode: resolved.code,
+      promotion: resolved.promotionId
+        ? { id: resolved.promotionId, discountCents: resolved.discount }
+        : null,
     };
   }
 

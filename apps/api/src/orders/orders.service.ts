@@ -37,6 +37,11 @@ import {
 import { isNewPartnerOrder, orderTimingFields } from './kitchen-timing';
 import { assertOrderTransitionKeepsPaymentAligned } from '../payments/order-payment-consistency';
 import type { PaymentStatusValue } from '../payments/payment-provider';
+import { promotionRejectionMessage } from '../promotions/promotion-http';
+import {
+  PromotionRedeemError,
+  redeemPromotionInTx,
+} from '../promotions/promotion-redeem';
 
 export interface CreateOrderFromCheckoutInput {
   userId: string;
@@ -58,6 +63,8 @@ export interface CreateOrderFromCheckoutInput {
   } | null;
   pricing: PriceBreakdown;
   menuById: Map<string, MenuItemSnapshotSource>;
+  /** When set, redemption is recorded atomically with the order. */
+  promotion?: { id: string; discountCents: number } | null;
 }
 
 const PAST_STATUSES = ['COMPLETED', 'CANCELLED', 'REJECTED'] as const;
@@ -373,50 +380,69 @@ export class OrdersService {
       }),
     );
 
-    const created = await prisma.$transaction(async (tx) => {
-      const order = await tx.order.create({
-        data: {
-          userId: input.userId,
-          restaurantBranchId: input.restaurantBranchId,
-          restaurantName: input.restaurantName,
-          branchName: input.branchName,
-          fulfillmentType: input.fulfillmentType,
-          deliveryAddressId: addressSnap.deliveryAddressId,
-          deliveryLabel: addressSnap.deliveryLabel,
-          deliveryLine1: addressSnap.deliveryLine1,
-          deliveryLine2: addressSnap.deliveryLine2,
-          deliveryCity: addressSnap.deliveryCity,
-          deliveryRegion: addressSnap.deliveryRegion,
-          deliveryPostalCode: addressSnap.deliveryPostalCode,
-          deliveryCountry: addressSnap.deliveryCountry,
-          status: 'PENDING',
-          ...pricingSnap,
-          ...settlementSnap,
-          items: {
-            create: itemSnapshots,
+    try {
+      const created = await prisma.$transaction(async (tx) => {
+        const order = await tx.order.create({
+          data: {
+            userId: input.userId,
+            restaurantBranchId: input.restaurantBranchId,
+            restaurantName: input.restaurantName,
+            branchName: input.branchName,
+            fulfillmentType: input.fulfillmentType,
+            deliveryAddressId: addressSnap.deliveryAddressId,
+            deliveryLabel: addressSnap.deliveryLabel,
+            deliveryLine1: addressSnap.deliveryLine1,
+            deliveryLine2: addressSnap.deliveryLine2,
+            deliveryCity: addressSnap.deliveryCity,
+            deliveryRegion: addressSnap.deliveryRegion,
+            deliveryPostalCode: addressSnap.deliveryPostalCode,
+            deliveryCountry: addressSnap.deliveryCountry,
+            status: 'PENDING',
+            ...pricingSnap,
+            ...settlementSnap,
+            items: {
+              create: itemSnapshots,
+            },
           },
-        },
-        include: {
-          items: true,
-          restaurantBranch: { select: { restaurantId: true, name: true } },
-        },
+          include: {
+            items: true,
+            restaurantBranch: { select: { restaurantId: true, name: true } },
+          },
+        });
+
+        await tx.orderStatusHistory.create({
+          data: {
+            orderId: order.id,
+            fromStatus: null,
+            toStatus: 'PENDING',
+            actorUserId: input.userId,
+            reason: 'created',
+          },
+        });
+
+        if (input.promotion) {
+          await redeemPromotionInTx(tx, {
+            promotionId: input.promotion.id,
+            userId: input.userId,
+            orderId: order.id,
+            discountCents: input.promotion.discountCents,
+            itemsSubtotal: input.pricing.itemsSubtotal,
+            currency: input.pricing.currency,
+            restaurantId: input.restaurantId,
+          });
+        }
+
+        await tx.cart.delete({ where: { id: input.cartId } });
+        return order;
       });
 
-      await tx.orderStatusHistory.create({
-        data: {
-          orderId: order.id,
-          fromStatus: null,
-          toStatus: 'PENDING',
-          actorUserId: input.userId,
-          reason: 'created',
-        },
-      });
-
-      await tx.cart.delete({ where: { id: input.cartId } });
-      return order;
-    });
-
-    return this.serializeOrder(created);
+      return this.serializeOrder(created);
+    } catch (err) {
+      if (err instanceof PromotionRedeemError) {
+        throw new BadRequestException(promotionRejectionMessage(err.reason));
+      }
+      throw err;
+    }
   }
 
   private async resolveActorRole(

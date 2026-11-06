@@ -34,7 +34,7 @@ All amounts remain integer **minor units**. Commission rate is **basis points** 
 - Per-restaurant / tiered commission schedules
 - Courier / driver payout split
 - PSP marketplace split instructions on authorize/capture ([ADR 0014](./0014-payment-abstraction.md))
-- Coupons (EAT-50) and tax jurisdictions (EAT-70)
+- Tax jurisdictions (EAT-70); coupons closed by [ADR 0020](./0020-coupons-and-promotions.md)
 
 ## Consequences
 

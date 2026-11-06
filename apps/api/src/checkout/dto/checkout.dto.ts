@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsUUID, ValidateIf } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUUID, MaxLength, ValidateIf } from 'class-validator';
 
 export class CheckoutDto {
   @ApiProperty({ enum: ['DELIVERY', 'PICKUP'] })
@@ -20,4 +20,13 @@ export class CheckoutDto {
   @IsOptional()
   @IsUUID()
   discoveryAddressId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Optional promotion code. Evaluated server-side; invalid or overused codes are rejected.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  promoCode?: string;
 }

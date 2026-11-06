@@ -4,11 +4,12 @@ import { CartModule } from '../cart/cart.module';
 import { IDEMPOTENCY_STORE } from '../common/idempotency.tokens';
 import { PrismaIdempotencyStore } from '../common/prisma-idempotency.store';
 import { OrdersModule } from '../orders/orders.module';
+import { PromotionsModule } from '../promotions/promotions.module';
 import { CheckoutController } from './checkout.controller';
 import { CheckoutService } from './checkout.service';
 
 @Module({
-  imports: [AuthModule, CartModule, OrdersModule],
+  imports: [AuthModule, CartModule, OrdersModule, PromotionsModule],
   controllers: [CheckoutController],
   providers: [
     CheckoutService,

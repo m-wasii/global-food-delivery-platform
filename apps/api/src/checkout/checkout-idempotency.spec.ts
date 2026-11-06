@@ -24,11 +24,13 @@ describe('checkout idempotency helpers', () => {
         fulfillment: 'DELIVERY',
         deliveryAddressId: 'addr-1',
         discoveryAddressId: 'addr-1',
+        promoCode: 'save10',
       }),
     ).toEqual({
       fulfillment: 'DELIVERY',
       deliveryAddressId: 'addr-1',
       discoveryAddressId: 'addr-1',
+      promoCode: 'SAVE10',
     });
   });
 
