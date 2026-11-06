@@ -27,8 +27,9 @@ Also: `FAILED`, `CANCELED` (terminals except **retry** from `FAILED` → `REQUIR
 | `PROCESSING` | `AUTHORIZED`, `CAPTURED`, `FAILED`, `CANCELED` |
 | `AUTHORIZED` | `CAPTURED`, `CANCELED`, `FAILED` |
 | `CAPTURED` | `PARTIALLY_REFUNDED`, `REFUNDED` |
-| `PARTIALLY_REFUNDED` | `REFUNDED` |
-| `REFUNDED` / `CANCELED` | ∅ |
+| `PARTIALLY_REFUNDED` | `REFUNDED`, `CAPTURED` (further refund or failure unwind; [ADR 0018](./0018-refund-webhooks.md)) |
+| `REFUNDED` | `PARTIALLY_REFUNDED`, `CAPTURED` (refund-failure unwind) |
+| `CANCELED` | ∅ |
 | `FAILED` | `REQUIRES_ACTION`, `PROCESSING`, `AUTHORIZED` (retry) |
 
 Partial-refund amount bumps that stay `PARTIALLY_REFUNDED` update amounts + history reason without a same-status graph edge (graph forbids `from === to`).
@@ -57,7 +58,7 @@ Partial-refund amount bumps that stay `PARTIALLY_REFUNDED` update amounts + hist
 
 ## Explicitly deferred
 
-- Webhook ingress / `parseWebhook` (refund path → **EAT-80**)
+- Non-refund webhook kinds (refund ingress → [ADR 0018](./0018-refund-webhooks.md))
 - Background reconciliation jobs / ledger
 - Multi-payment instalments per order
 

@@ -24,7 +24,6 @@ describe('payment transitions', () => {
   it('allows retry from FAILED and rejects terminal / invalid moves', () => {
     expect(canTransitionPayment('FAILED', 'AUTHORIZED')).toBe(true);
     expect(canTransitionPayment('FAILED', 'REQUIRES_ACTION')).toBe(true);
-    expect(canTransitionPayment('REFUNDED', 'CAPTURED')).toBe(false);
     expect(canTransitionPayment('CANCELED', 'AUTHORIZED')).toBe(false);
     expect(canTransitionPayment('AUTHORIZED', 'REFUNDED')).toBe(false);
     expect(canTransitionPayment('CAPTURED', 'AUTHORIZED')).toBe(false);
@@ -33,11 +32,20 @@ describe('payment transitions', () => {
     );
   });
 
+  it('allows refund-failure unwind of payment money states', () => {
+    expect(canTransitionPayment('REFUNDED', 'CAPTURED')).toBe(true);
+    expect(canTransitionPayment('REFUNDED', 'PARTIALLY_REFUNDED')).toBe(true);
+    expect(canTransitionPayment('PARTIALLY_REFUNDED', 'CAPTURED')).toBe(true);
+  });
+
   it('lists targets and rejects same-status edges', () => {
     expect(allowedPaymentTargets('AUTHORIZED')).toEqual(
       expect.arrayContaining(['CAPTURED', 'CANCELED', 'FAILED']),
     );
     expect(canTransitionPayment('AUTHORIZED', 'AUTHORIZED')).toBe(false);
-    expect(allowedPaymentTargets('REFUNDED')).toEqual([]);
+    expect(allowedPaymentTargets('REFUNDED')).toEqual([
+      'PARTIALLY_REFUNDED',
+      'CAPTURED',
+    ]);
   });
 });

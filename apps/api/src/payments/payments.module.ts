@@ -4,13 +4,14 @@ import { IDEMPOTENCY_STORE } from '../common/idempotency.tokens';
 import { PrismaIdempotencyStore } from '../common/prisma-idempotency.store';
 import { PAYMENT_PROVIDER } from './payment-provider';
 import { NoopPaymentProvider } from './noop-payment.provider';
+import { PaymentWebhooksController } from './payment-webhooks.controller';
 import { PaymentsService } from './payments.service';
 import { RefundsController } from './refunds.controller';
 import { RefundsService } from './refunds.service';
 
 @Module({
   imports: [AuthModule],
-  controllers: [RefundsController],
+  controllers: [RefundsController, PaymentWebhooksController],
   providers: [
     NoopPaymentProvider,
     {

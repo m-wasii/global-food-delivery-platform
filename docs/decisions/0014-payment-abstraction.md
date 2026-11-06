@@ -16,7 +16,7 @@ Talk to payment rails through a **`PaymentProvider`** Nest injectable so order/c
 
 | Piece | Role |
 | --- | --- |
-| `PaymentProvider` | Port: `authorize` / `capture` / `cancel` / `refund` / `getStatus` |
+| `PaymentProvider` | Port: `authorize` / `capture` / `cancel` / `refund` / `getStatus` / `parseWebhook` |
 | `PAYMENT_PROVIDER` | DI token; swap Stripe/Adyen/regional without rewriting callers |
 | `PaymentSnapshot` | `provider`, `providerPaymentId`, `status`, `amountCents`, `amountCapturableCents`, `amountReceivedCents`, `refundedAmountCents` |
 | `NoopPaymentProvider` | In-memory baseline (`provider = "noop"`) |
@@ -38,7 +38,7 @@ Auth-then-capture matches food delivery (hold at checkout, capture when the kitc
 
 ## Explicitly deferred
 
-- Webhook normalization / `parseWebhook` (provider adapters later; refund path → **EAT-80**)
+- Non-refund payment webhook kinds (auth/capture/cancel); refund path closed in [ADR 0018](./0018-refund-webhooks.md) (**EAT-80**)
 - Client secrets / SCA challenge UI
 - Marketplace split instructions (Adyen for Platforms)
 - Payment method tokens / saved cards

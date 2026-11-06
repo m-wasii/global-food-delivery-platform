@@ -28,7 +28,7 @@ Closes the “Refund API productization” deferral from ADR 0015 (EAT-48).
 ## Explicitly deferred (owned)
 
 - Partner / customer refund UI surfaces (HTTP API shipped in EAT-79)
-- Async webhook flips (`refund.failed` / Adyen `REFUND_FAILED`) mutating `Refund.status` → **EAT-80**
+- Async webhook flips → closed in [ADR 0018](./0018-refund-webhooks.md) (**EAT-80**)
 - Marketplace split / commission clawback → **EAT-49**
 - Automatic order cancellation coupling
 
