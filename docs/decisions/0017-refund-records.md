@@ -8,9 +8,11 @@ Closes the “Refund API productization” deferral from ADR 0015 (EAT-48).
 
 ## Sources aligned
 
-- [Stripe Refunds](https://docs.stripe.com/refunds) / [Create a refund](https://docs.stripe.com/api/refunds/create) — separate Refund object linked to PaymentIntent/charge; multiple partials until the captured remainder is exhausted; cannot refund more than charged; cancel uncaptured auths instead of refunding
+- [Stripe Refunds](https://docs.stripe.com/refunds) / [Create a refund](https://docs.stripe.com/api/refunds/create) — separate Refund object linked to PaymentIntent/charge; multiple partials until the captured remainder is exhausted; cannot refund more than charged; cancel uncaptured auths instead of refunding; HTTP `POST /v1/refunds` with `payment_intent` + optional `amount`
+- [Stripe Idempotent requests](https://docs.stripe.com/api/idempotent_requests) — `Idempotency-Key` header (≤255) on mutating POSTs; replay first response; conflict on param mismatch
 - [Adyen Refund](https://docs.adyen.com/online-payments/refund) — refund only after capture; full/partial; sum of partials ≤ captured amount; async outcome via webhooks
 - Industry: server-side remaining balance; never accept a free-floating provider payment id from the client; idempotency key per refund operation ([ADR 0016](./0016-idempotency-protection.md))
+- NestJS: thin controllers + DTO validation + `@ApiHeader` for documented required headers
 
 ## Shape
 
@@ -19,12 +21,13 @@ Closes the “Refund API productization” deferral from ADR 0015 (EAT-48).
 | `planRefund` / `refundableRemainingCents` | Pure caps + next payment status + order↔money consistency |
 | `createRefundDraft` | Forces `paymentId` + `orderId` on every persistable row |
 | `Refund` / `RefundStatus` | Append-only ledger (`PENDING` / `SUCCEEDED` / `FAILED`) |
-| `RefundsService.issue` | Provider refund → Refund row → Payment amounts/status + history |
+| `RefundsService.issue` | Provider refund → Refund row → Payment amounts/status + history; platform `Idempotency-Key` store/replay |
+| `POST /payments/:paymentId/refunds` | Thin Nest controller (EAT-79); authenticated; required `Idempotency-Key`; body returns refund linked to order + payment |
 | `listForOrder` / `listForPayment` | Traceability queries for ops / customer history |
 
 ## Explicitly deferred (owned)
 
-- HTTP refund controller / partner UI → **EAT-79**
+- Partner / customer refund UI surfaces (HTTP API shipped in EAT-79)
 - Async webhook flips (`refund.failed` / Adyen `REFUND_FAILED`) mutating `Refund.status` → **EAT-80**
 - Marketplace split / commission clawback → **EAT-49**
 - Automatic order cancellation coupling

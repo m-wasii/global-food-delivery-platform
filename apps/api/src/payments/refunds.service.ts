@@ -5,6 +5,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { prisma } from '@food-delivery/database';
+import {
+  IdempotencyConflictError,
+  runWithIdempotency,
+  type IdempotencyStore,
+} from '../common/idempotency';
+import {
+  normalizeIdempotencyKey,
+  toHttpIdempotencyError,
+} from '../common/idempotency-http';
+import { IDEMPOTENCY_STORE } from '../common/idempotency.tokens';
 import type { OrderStatusValue } from '../orders/order-transitions';
 import {
   PAYMENT_PROVIDER,
@@ -12,12 +22,18 @@ import {
   type PaymentStatusValue,
 } from './payment-provider';
 import { createRefundDraft } from './refund-record';
+import {
+  refundIssueRequest,
+  refundIssueScope,
+  toRefundHttpResponse,
+} from './refund-http';
 import { planRefund } from './refund-rules';
 
 export interface IssueRefundInput {
   paymentId: string;
   amountCents: number;
-  idempotencyKey: string;
+  /** Raw Idempotency-Key header; normalized inside issue(). */
+  idempotencyKey?: string;
   reason?: string;
   actorUserId?: string;
 }
@@ -26,13 +42,43 @@ export interface IssueRefundInput {
 export class RefundsService {
   constructor(
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
+    @Inject(IDEMPOTENCY_STORE) private readonly idempotencyStore: IdempotencyStore,
   ) {}
 
   /**
    * Issues a full or partial refund: rail call → Refund row → Payment FSM bump.
-   * Refund rows are always FK'd to both payment and order (EAT-48).
+   * Platform idempotency replays the HTTP body so retries do not double-refund (EAT-79).
    */
   async issue(input: IssueRefundInput) {
+    const idempotencyKey = normalizeIdempotencyKey(input.idempotencyKey);
+    try {
+      return await runWithIdempotency({
+        store: this.idempotencyStore,
+        scope: refundIssueScope(input.paymentId),
+        key: idempotencyKey,
+        request: refundIssueRequest(input),
+        execute: async () => {
+          const result = await this.executeIssue({
+            paymentId: input.paymentId,
+            amountCents: input.amountCents,
+            reason: input.reason,
+            actorUserId: input.actorUserId,
+            idempotencyKey,
+          });
+          return toRefundHttpResponse(result);
+        },
+      });
+    } catch (err) {
+      if (err instanceof IdempotencyConflictError) {
+        throw toHttpIdempotencyError(err);
+      }
+      throw err;
+    }
+  }
+
+  private async executeIssue(
+    input: Omit<IssueRefundInput, 'idempotencyKey'> & { idempotencyKey: string },
+  ) {
     const payment = await prisma.payment.findUnique({
       where: { id: input.paymentId },
       include: { order: { select: { id: true, status: true } } },
