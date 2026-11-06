@@ -6,11 +6,14 @@ import {
 } from '@nestjs/common';
 import { prisma } from '@food-delivery/database';
 import { RestaurantOwnershipService } from '../restaurants/restaurant-ownership.service';
+import { loadCommissionRateBps } from '../cart/commission-config';
+import { settleOrder } from '../cart/commission';
 import type { PriceBreakdown } from '../cart/pricing';
 import {
   buildAddressSnapshot,
   buildOrderItemSnapshots,
   buildPricingSnapshot,
+  buildSettlementSnapshot,
   type MenuItemSnapshotSource,
 } from './order-creation';
 import {
@@ -360,6 +363,15 @@ export class OrdersService {
     const itemSnapshots = buildOrderItemSnapshots(input.pricing, input.menuById);
     const addressSnap = buildAddressSnapshot(input.deliveryAddress);
     const pricingSnap = buildPricingSnapshot(input.pricing);
+    const settlementSnap = buildSettlementSnapshot(
+      settleOrder({
+        itemsSubtotal: input.pricing.itemsSubtotal,
+        discount: input.pricing.discount,
+        serviceFee: input.pricing.serviceFee,
+        deliveryFee: input.pricing.deliveryFee,
+        commissionRateBps: loadCommissionRateBps(),
+      }),
+    );
 
     const created = await prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
@@ -379,6 +391,7 @@ export class OrdersService {
           deliveryCountry: addressSnap.deliveryCountry,
           status: 'PENDING',
           ...pricingSnap,
+          ...settlementSnap,
           items: {
             create: itemSnapshots,
           },
@@ -488,6 +501,11 @@ export class OrdersService {
     taxCents?: number;
     taxRateBps?: number;
     totalCents: number;
+    commissionBaseCents?: number;
+    commissionRateBps?: number;
+    commissionCents?: number;
+    restaurantNetCents?: number;
+    platformRevenueCents?: number;
     createdAt: Date;
     updatedAt: Date;
     restaurantBranch?: { restaurantId: string; name?: string };
@@ -530,6 +548,13 @@ export class OrdersService {
         tax: order.taxCents ?? 0,
         taxRateBps: order.taxRateBps ?? 0,
         total: order.totalCents,
+      },
+      settlement: {
+        commissionBase: order.commissionBaseCents ?? 0,
+        commissionRateBps: order.commissionRateBps ?? 0,
+        commission: order.commissionCents ?? 0,
+        restaurantNet: order.restaurantNetCents ?? 0,
+        platformRevenue: order.platformRevenueCents ?? 0,
       },
       total: order.totalCents,
       createdAt: order.createdAt,

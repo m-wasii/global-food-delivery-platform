@@ -41,7 +41,7 @@ Refund amounts are counted on the payment **only while the refund row is `SUCCEE
 - Webhook signature verification (Stripe `Stripe-Signature` / Adyen HMAC)
 - Non-refund payment webhook kinds (auth/capture/cancel ingress)
 - `REFUNDED_REVERSED` / charge.dispute coupling
-- Marketplace split clawback → **EAT-49**
+- Marketplace split clawback planning → [ADR 0019](./0019-fees-and-commission.md); PSP transfer clawback still deferred with ADR 0014
 
 ## Consequences
 

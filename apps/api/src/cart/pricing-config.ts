@@ -1,5 +1,6 @@
 /**
- * Pluggable fee/tax defaults for M04. Rich rules land in EAT-49 / EAT-70.
+ * Pluggable fee/tax defaults for M04. Tax jurisdictions → EAT-70.
+ * Marketplace commission → ADR 0019 / `commission-config.ts`.
  * Amounts are minor units of the cart currency; tax is basis points.
  */
 export interface PricingDefaults {

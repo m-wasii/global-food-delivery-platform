@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { settleOrder } from '../cart/commission';
 import { priceCart } from '../cart/pricing';
 import {
   buildAddressSnapshot,
   buildOrderItemSnapshots,
   buildPricingSnapshot,
+  buildSettlementSnapshot,
 } from './order-creation';
 
 describe('order creation snapshots', () => {
@@ -61,5 +63,30 @@ describe('order creation snapshots', () => {
     expect(snap.itemsSubtotalCents).toBe(1000);
     expect(snap.serviceFeeCents).toBe(50);
     expect(snap.deliveryFeeCents).toBe(100);
+  });
+
+  it('freezes settlement so commission and platform revenue stay auditable', () => {
+    const pricing = priceCart({
+      currency: 'USD',
+      lines: [{ menuItemId: 'x', quantity: 1, unitPrice: 1000 }],
+      serviceFee: 50,
+      deliveryFee: 100,
+      discount: 0,
+    });
+    const settlement = settleOrder({
+      itemsSubtotal: pricing.itemsSubtotal,
+      discount: pricing.discount,
+      serviceFee: pricing.serviceFee,
+      deliveryFee: pricing.deliveryFee,
+      commissionRateBps: 1500,
+    });
+    const snap = buildSettlementSnapshot(settlement);
+    expect(snap).toEqual({
+      commissionBaseCents: 1000,
+      commissionRateBps: 1500,
+      commissionCents: 150,
+      restaurantNetCents: 850,
+      platformRevenueCents: 300,
+    });
   });
 });

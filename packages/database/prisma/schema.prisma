@@ -409,6 +409,14 @@ model Order {
   taxCents           Int              @default(0)
   taxRateBps         Int              @default(0)
   totalCents         Int
+  /// Marketplace settlement snapshot (EAT-49 / ADR 0019). Minor units.
+  commissionBaseCents   Int           @default(0)
+  /// Rate applied at create; may differ from live COMMISSION_RATE_BPS later.
+  commissionRateBps     Int           @default(0)
+  commissionCents       Int           @default(0)
+  restaurantNetCents    Int           @default(0)
+  /// commission + customer-facing fees (service + delivery); excludes tax.
+  platformRevenueCents  Int           @default(0)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
