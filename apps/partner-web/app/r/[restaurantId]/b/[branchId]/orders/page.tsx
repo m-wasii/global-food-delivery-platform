@@ -2,11 +2,19 @@
 
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { fetchPartnerOrders } from '../../../../../../lib/api';
+import { fetchPartnerOrders, transitionPartnerOrder } from '../../../../../../lib/api';
 import { formatWaitAge, waitAnchorIso } from '../../../../../../lib/order-wait';
-import type { PartnerOrderSummary } from '../../../../../../lib/types';
+import type { PartnerOrderSummary, RejectReasonCode } from '../../../../../../lib/types';
+import { REJECT_REASONS } from '../../../../../../lib/types';
 
 const POLL_MS = 5_000;
+
+const REJECT_LABELS: Record<RejectReasonCode, string> = {
+  OUT_OF_STOCK: 'Out of stock',
+  TOO_BUSY: 'Too busy',
+  CLOSING_SOON: 'Closing soon',
+  OTHER: 'Other',
+};
 
 function formatMoney(amount: number, currency: string): string {
   try {
@@ -23,12 +31,37 @@ function OrderRow({
   order,
   nowMs,
   emphasize,
+  busyOrderId,
+  actionError,
+  rejectDraft,
+  onAccept,
+  onBeginReject,
+  onCancelReject,
+  onRejectReasonChange,
+  onRejectNoteChange,
+  onConfirmReject,
 }: {
   order: PartnerOrderSummary;
   nowMs: number;
   emphasize?: boolean;
+  busyOrderId: string | null;
+  actionError: string | null;
+  rejectDraft: {
+    orderId: string;
+    reason: RejectReasonCode;
+    note: string;
+  } | null;
+  onAccept: (orderId: string) => void;
+  onBeginReject: (orderId: string) => void;
+  onCancelReject: () => void;
+  onRejectReasonChange: (reason: RejectReasonCode) => void;
+  onRejectNoteChange: (note: string) => void;
+  onConfirmReject: () => void;
 }) {
   const age = formatWaitAge(waitAnchorIso(order), nowMs);
+  const isPending = order.status === 'PENDING' || order.isNew;
+  const isBusy = busyOrderId === order.id;
+  const isRejecting = rejectDraft?.orderId === order.id;
 
   return (
     <li
@@ -41,7 +74,15 @@ function OrderRow({
         borderLeft: emphasize ? '3px solid #c47a00' : undefined,
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: '1rem',
+          flexWrap: 'wrap',
+          alignItems: 'flex-start',
+        }}
+      >
         <div>
           <strong>#{order.id.slice(0, 8)}</strong>
           <span style={{ color: '#666' }}> · {order.branchName}</span>
@@ -57,7 +98,80 @@ function OrderRow({
             {new Date(order.createdAt).toLocaleString()}
           </div>
         </div>
+
+        {isPending ? (
+          <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+            <button
+              type="button"
+              disabled={isBusy || !!rejectDraft}
+              onClick={() => onAccept(order.id)}
+            >
+              {isBusy && !isRejecting ? 'Accepting…' : 'Accept'}
+            </button>
+            <button
+              type="button"
+              disabled={isBusy || (!!rejectDraft && !isRejecting)}
+              onClick={() => onBeginReject(order.id)}
+            >
+              Reject
+            </button>
+          </div>
+        ) : null}
       </div>
+
+      {isRejecting && rejectDraft ? (
+        <div
+          style={{
+            marginTop: '0.75rem',
+            padding: '0.75rem',
+            background: '#f7f7f7',
+            border: '1px solid #ddd',
+          }}
+        >
+          <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: 4 }}>
+            Reject reason (required)
+            <select
+              value={rejectDraft.reason}
+              disabled={isBusy}
+              onChange={(e) =>
+                onRejectReasonChange(e.target.value as RejectReasonCode)
+              }
+              style={{ display: 'block', marginTop: 4, minWidth: 200 }}
+            >
+              {REJECT_REASONS.map((code) => (
+                <option key={code} value={code}>
+                  {REJECT_LABELS[code]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label style={{ display: 'block', fontSize: '0.9rem', marginTop: 8 }}>
+            Note (optional)
+            <input
+              type="text"
+              value={rejectDraft.note}
+              disabled={isBusy}
+              maxLength={500}
+              onChange={(e) => onRejectNoteChange(e.target.value)}
+              style={{ display: 'block', marginTop: 4, width: '100%', maxWidth: 360 }}
+            />
+          </label>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: 10 }}>
+            <button type="button" disabled={isBusy} onClick={onConfirmReject}>
+              {isBusy ? 'Rejecting…' : 'Confirm reject'}
+            </button>
+            <button type="button" disabled={isBusy} onClick={onCancelReject}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {actionError ? (
+        <p style={{ color: '#b00020', fontSize: '0.85rem', margin: '0.5rem 0 0' }}>
+          {actionError}
+        </p>
+      ) : null}
     </li>
   );
 }
@@ -68,12 +182,36 @@ function OrderSection({
   nowMs,
   emphasize,
   emptyLabel,
+  busyOrderId,
+  actionError,
+  actionErrorOrderId,
+  rejectDraft,
+  onAccept,
+  onBeginReject,
+  onCancelReject,
+  onRejectReasonChange,
+  onRejectNoteChange,
+  onConfirmReject,
 }: {
   title: string;
   orders: PartnerOrderSummary[];
   nowMs: number;
   emphasize?: boolean;
   emptyLabel: string;
+  busyOrderId: string | null;
+  actionError: string | null;
+  actionErrorOrderId: string | null;
+  rejectDraft: {
+    orderId: string;
+    reason: RejectReasonCode;
+    note: string;
+  } | null;
+  onAccept: (orderId: string) => void;
+  onBeginReject: (orderId: string) => void;
+  onCancelReject: () => void;
+  onRejectReasonChange: (reason: RejectReasonCode) => void;
+  onRejectNoteChange: (note: string) => void;
+  onConfirmReject: () => void;
 }) {
   return (
     <section style={{ marginBottom: '1.75rem' }}>
@@ -91,6 +229,17 @@ function OrderSection({
               order={order}
               nowMs={nowMs}
               emphasize={emphasize}
+              busyOrderId={busyOrderId}
+              actionError={
+                actionErrorOrderId === order.id ? actionError : null
+              }
+              rejectDraft={rejectDraft}
+              onAccept={onAccept}
+              onBeginReject={onBeginReject}
+              onCancelReject={onCancelReject}
+              onRejectReasonChange={onRejectReasonChange}
+              onRejectNoteChange={onRejectNoteChange}
+              onConfirmReject={onConfirmReject}
             />
           ))}
         </ul>
@@ -111,6 +260,16 @@ export default function OrdersPage() {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [lastFetchedAt, setLastFetchedAt] = useState<number | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionErrorOrderId, setActionErrorOrderId] = useState<string | null>(
+    null,
+  );
+  const [rejectDraft, setRejectDraft] = useState<{
+    orderId: string;
+    reason: RejectReasonCode;
+    note: string;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,6 +317,78 @@ export default function OrdersPage() {
     return { incoming: incomingOrders, inProgress: inProgressOrders };
   }, [orders]);
 
+  function refreshQueue() {
+    setRefreshToken((n) => n + 1);
+  }
+
+  async function handleAccept(orderId: string) {
+    setBusyOrderId(orderId);
+    setActionError(null);
+    setActionErrorOrderId(null);
+    setRejectDraft(null);
+    const result = await transitionPartnerOrder({
+      orderId,
+      toStatus: 'CONFIRMED',
+    });
+    setBusyOrderId(null);
+    if (!result.ok) {
+      setActionError(result.message);
+      setActionErrorOrderId(orderId);
+      return;
+    }
+    refreshQueue();
+  }
+
+  function handleBeginReject(orderId: string) {
+    setActionError(null);
+    setActionErrorOrderId(null);
+    setRejectDraft({
+      orderId,
+      reason: 'OUT_OF_STOCK',
+      note: '',
+    });
+  }
+
+  async function handleConfirmReject() {
+    if (!rejectDraft) return;
+    const { orderId, reason, note } = rejectDraft;
+    setBusyOrderId(orderId);
+    setActionError(null);
+    setActionErrorOrderId(null);
+    const result = await transitionPartnerOrder({
+      orderId,
+      toStatus: 'REJECTED',
+      rejectReason: reason,
+      reason: note,
+    });
+    setBusyOrderId(null);
+    if (!result.ok) {
+      setActionError(result.message);
+      setActionErrorOrderId(orderId);
+      return;
+    }
+    setRejectDraft(null);
+    refreshQueue();
+  }
+
+  const sectionProps = {
+    nowMs,
+    busyOrderId,
+    actionError,
+    actionErrorOrderId,
+    rejectDraft,
+    onAccept: handleAccept,
+    onBeginReject: handleBeginReject,
+    onCancelReject: () => setRejectDraft(null),
+    onRejectReasonChange: (reason: RejectReasonCode) =>
+      setRejectDraft((d) => (d ? { ...d, reason } : d)),
+    onRejectNoteChange: (note: string) =>
+      setRejectDraft((d) => (d ? { ...d, note } : d)),
+    onConfirmReject: () => {
+      void handleConfirmReject();
+    },
+  };
+
   return (
     <section>
       <div
@@ -195,15 +426,15 @@ export default function OrdersPage() {
           <OrderSection
             title="New"
             orders={incoming}
-            nowMs={nowMs}
             emphasize
             emptyLabel="No new orders"
+            {...sectionProps}
           />
           <OrderSection
             title="In progress"
             orders={inProgress}
-            nowMs={nowMs}
             emptyLabel="Nothing in progress"
+            {...sectionProps}
           />
         </>
       ) : null}
