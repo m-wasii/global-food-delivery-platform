@@ -38,7 +38,7 @@ Auth-then-capture matches food delivery (hold at checkout, capture when the kitc
 
 ## Explicitly deferred
 
-- Webhook normalization / `parseWebhook` (provider adapters later)
+- Webhook normalization / `parseWebhook` (provider adapters later; refund path → **EAT-80**)
 - Client secrets / SCA challenge UI
 - Marketplace split instructions (Adyen for Platforms)
 - Payment method tokens / saved cards
