@@ -13,6 +13,7 @@ Order creation is owned by **`OrdersService.createFromCheckout`**. Checkout vali
 | Restaurant / branch display names | `Order.restaurantName`, `Order.branchName` |
 | Delivery address (delivery only) | Columns on `Order` (+ optional live `deliveryAddressId`) |
 | Pricing breakdown | `itemsSubtotalCents`, fees, tax, `totalCents`, `taxRateBps` |
+| Marketplace settlement | `commissionBaseCents`, `commissionRateBps`, `commissionCents`, `restaurantNetCents`, `platformRevenueCents` ([ADR 0019](./0019-fees-and-commission.md)) |
 
 Builders live in `order-creation.ts` (pure) so immutability can be unit-tested without the DB.
 

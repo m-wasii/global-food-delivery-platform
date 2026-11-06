@@ -1,3 +1,4 @@
+import type { SettlementBreakdown } from '../cart/commission';
 import type { PriceBreakdown } from '../cart/pricing';
 
 export interface MenuItemSnapshotSource {
@@ -90,5 +91,16 @@ export function buildPricingSnapshot(pricing: PriceBreakdown) {
     taxCents: pricing.tax,
     taxRateBps: pricing.taxRateBps,
     totalCents: pricing.total,
+  };
+}
+
+/** Freeze marketplace settlement at order create (EAT-49). */
+export function buildSettlementSnapshot(settlement: SettlementBreakdown) {
+  return {
+    commissionBaseCents: settlement.commissionBase,
+    commissionRateBps: settlement.commissionRateBps,
+    commissionCents: settlement.commission,
+    restaurantNetCents: settlement.restaurantNet,
+    platformRevenueCents: settlement.platformRevenue,
   };
 }

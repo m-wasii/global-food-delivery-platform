@@ -20,7 +20,7 @@ Same inputs always produce the same output (integer floor for tax).
 
 ## M04 scope vs later
 
-- Defaults for fees/tax come from env (`PRICING_*_MINOR`, `PRICING_TAX_RATE_BPS`); coupons/fee rules/tax jurisdictions are EAT-50 / EAT-49 / EAT-70.
+- Defaults for fees/tax come from env (`PRICING_*_MINOR`, `PRICING_TAX_RATE_BPS`); coupons / tax jurisdictions are EAT-50 / EAT-70. Marketplace commission + platform revenue: [ADR 0019](./0019-fees-and-commission.md) (**EAT-49**).
 - `GET /carts/:restaurantId/quote` exposes the breakdown; checkout reuses the same engine.
 
 ## Consequences

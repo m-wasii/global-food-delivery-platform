@@ -29,7 +29,7 @@ Closes the “Refund API productization” deferral from ADR 0015 (EAT-48).
 
 - Partner / customer refund UI surfaces (HTTP API shipped in EAT-79)
 - Async webhook flips → closed in [ADR 0018](./0018-refund-webhooks.md) (**EAT-80**)
-- Marketplace split / commission clawback → **EAT-49**
+- Marketplace split / commission clawback planning → [ADR 0019](./0019-fees-and-commission.md) (`planSettlementClawback`); PSP transfer clawback still deferred with ADR 0014
 - Automatic order cancellation coupling
 
 ## Consequences
