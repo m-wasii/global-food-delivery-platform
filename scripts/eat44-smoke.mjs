@@ -14,6 +14,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const base = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 const pendingId = 'aa111111-1111-4111-8111-111111111111';
 const confirmedId = 'aa222222-2222-4222-8222-222222222222';
+const restaurantId = 'c1111111-1111-4111-8111-111111111111';
 const cookieJar = { value: '' };
 
 function reseed() {
@@ -125,6 +126,21 @@ async function main() {
   assertIso(detail.json?.timing?.readyAt, 'get.timing.readyAt');
   console.log('GET /orders/:id timing ok');
 
+  const listReady = await api(
+    'GET',
+    `/partner/orders?restaurantId=${restaurantId}&status=READY`,
+  );
+  assert(
+    listReady.status === 200,
+    `partner list failed: ${listReady.status} ${JSON.stringify(listReady.json)}`,
+  );
+  const listedReady = (listReady.json?.orders ?? []).find((o) => o.id === pendingId);
+  assert(listedReady, 'READY order missing from partner list');
+  assertIso(listedReady.timing?.acceptedAt, 'list.timing.acceptedAt');
+  assertIso(listedReady.timing?.preparingAt, 'list.timing.preparingAt');
+  assertIso(listedReady.timing?.readyAt, 'list.timing.readyAt');
+  console.log('GET /partner/orders timing ok (READY)');
+
   reseed();
   cookieJar.value = '';
   await login();
@@ -140,6 +156,19 @@ async function main() {
   assertIso(reject.json?.timing?.rejectedAt, 'reject.timing.rejectedAt');
   assert(reject.json?.timing?.acceptedAt == null, 'reject should not set acceptedAt');
   console.log(`REJECT timing.rejectedAt=${reject.json.timing.rejectedAt}`);
+
+  const listRejected = await api(
+    'GET',
+    `/partner/orders?restaurantId=${restaurantId}&status=REJECTED`,
+  );
+  assert(
+    listRejected.status === 200,
+    `partner reject list failed: ${listRejected.status} ${JSON.stringify(listRejected.json)}`,
+  );
+  const listedRejected = (listRejected.json?.orders ?? []).find((o) => o.id === pendingId);
+  assert(listedRejected, 'REJECTED order missing from partner list');
+  assertIso(listedRejected.timing?.rejectedAt, 'list.timing.rejectedAt');
+  console.log('GET /partner/orders timing ok (REJECTED)');
 
   // Seeded CONFIRMED order already has acceptedAt from history.
   const confirmed = await api('GET', `/orders/${confirmedId}`);
