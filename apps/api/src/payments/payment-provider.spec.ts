@@ -258,4 +258,38 @@ describe('PaymentProvider contract', () => {
       /unknown payment/i,
     );
   });
+
+  it('noop authorize replays the same snapshot for a matching idempotency key', async () => {
+    const provider = new NoopPaymentProvider();
+    const input = {
+      amountCents: 2599,
+      currency: 'USD',
+      orderId: 'order-replay',
+      customerId: 'user-1',
+      idempotencyKey: 'auth-replay-1',
+    };
+    const first = await provider.authorize(input);
+    const second = await provider.authorize(input);
+    expect(second).toEqual(first);
+  });
+
+  it('noop authorize rejects idempotency key reuse with different params', async () => {
+    const provider = new NoopPaymentProvider();
+    await provider.authorize({
+      amountCents: 2599,
+      currency: 'USD',
+      orderId: 'order-mismatch',
+      customerId: 'user-1',
+      idempotencyKey: 'auth-mismatch-1',
+    });
+    await expect(
+      provider.authorize({
+        amountCents: 100,
+        currency: 'USD',
+        orderId: 'order-mismatch',
+        customerId: 'user-1',
+        idempotencyKey: 'auth-mismatch-1',
+      }),
+    ).rejects.toThrow(/idempotency key was reused/i);
+  });
 });

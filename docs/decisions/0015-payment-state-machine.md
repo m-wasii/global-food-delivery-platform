@@ -57,7 +57,6 @@ Partial-refund amount bumps that stay `PARTIALLY_REFUNDED` update amounts + hist
 
 ## Explicitly deferred
 
-- Idempotency key store/replay (EAT-47)
 - Refund API productization (EAT-48)
 - Webhook ingress / `parseWebhook`
 - Background reconciliation jobs / ledger
@@ -67,3 +66,4 @@ Partial-refund amount bumps that stay `PARTIALLY_REFUNDED` update amounts + hist
 
 - Checkout may create `Payment` after `PaymentProvider.authorize`; partner accept/reject must not leave order `CONFIRMED` with payment still `AUTHORIZED`, etc.
 - `reconciliationNeeded` is a flag, not a status — keeps the money FSM clean while surfacing drift.
+- Idempotency key store/replay: [ADR 0016](./0016-idempotency-protection.md) (EAT-47).
