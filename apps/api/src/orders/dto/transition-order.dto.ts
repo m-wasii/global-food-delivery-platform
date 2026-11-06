@@ -2,7 +2,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsIn, IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
 import { CANCEL_REASONS } from '../cancellation';
 import { ORDER_STATUSES } from '../order-transitions';
-import { REJECT_REASONS } from '../rejection';
 
 export class TransitionOrderDto {
   @ApiProperty({ enum: ORDER_STATUSES })
@@ -18,17 +17,8 @@ export class TransitionOrderDto {
   cancelReason?: (typeof CANCEL_REASONS)[number];
 
   @ApiPropertyOptional({
-    enum: REJECT_REASONS,
-    description: 'Required when toStatus is REJECTED',
-  })
-  @ValidateIf((dto: TransitionOrderDto) => dto.toStatus === 'REJECTED')
-  @IsIn([...REJECT_REASONS])
-  rejectReason?: (typeof REJECT_REASONS)[number];
-
-  @ApiPropertyOptional({
     maxLength: 500,
-    description:
-      'Optional free-text note (appended after cancelReason / rejectReason on history)',
+    description: 'Optional free-text note (appended after cancelReason on cancel)',
   })
   @IsOptional()
   @IsString()

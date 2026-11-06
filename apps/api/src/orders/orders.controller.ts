@@ -66,7 +66,6 @@ export class OrdersController {
   ) {
     return this.ordersService.transition(req.user.id, orderId, dto.toStatus, {
       cancelReason: dto.cancelReason,
-      rejectReason: dto.rejectReason,
       reason: dto.reason,
     });
   }

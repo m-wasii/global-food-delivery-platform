@@ -10,8 +10,7 @@ This repository implements the **Global Food Delivery Platform** project tracked
 - Source control: GitHub
 - Architecture: modular monolith first, with deliberate evolution toward distributed components where justified
 - Primary backend: NestJS + TypeScript
-- Customer web: Next.js (`:3000`)
-- Partner web: Next.js restaurant dashboard (`:3002`)
+- Customer web: Next.js
 - Database: PostgreSQL
 - Cache / background infrastructure: Redis
 - ORM: Prisma
@@ -91,7 +90,6 @@ Or individually:
 ```bash
 pnpm --filter @food-delivery/api dev
 pnpm --filter @food-delivery/customer-web dev
-pnpm --filter @food-delivery/partner-web dev
 ```
 
 
@@ -99,7 +97,6 @@ pnpm --filter @food-delivery/partner-web dev
 | ------------ | ------------------------------------------------------ |
 | API          | [http://localhost:3001](http://localhost:3001)         |
 | Customer web | [http://localhost:3000](http://localhost:3000)         |
-| Partner web  | [http://localhost:3002](http://localhost:3002)         |
 | API docs     | [http://localhost:3001/api](http://localhost:3001/api) |
 
 
