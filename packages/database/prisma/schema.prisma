@@ -58,6 +58,7 @@ model User {
   restaurantMemberships   RestaurantMembership[]
   mediaAssets             MediaAsset[]
   refunds                 Refund[]
+  promotionRedemptions    PromotionRedemption[]
 }
 
 model CourierProfile {
@@ -182,6 +183,7 @@ model Restaurant {
   memberships   RestaurantMembership[]
   carts         Cart[]
   preferences   UserRestaurantPreference[]
+  promotions    Promotion[]
 
   @@index([status])
   @@index([coverMediaId])
@@ -420,15 +422,68 @@ model Order {
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
-  items   OrderItem[]
-  history OrderStatusHistory[]
-  payment Payment?
-  refunds Refund[]
+  items               OrderItem[]
+  history             OrderStatusHistory[]
+  payment             Payment?
+  refunds             Refund[]
+  promotionRedemption PromotionRedemption?
 
   @@index([userId])
   @@index([restaurantBranchId])
   @@index([deliveryAddressId])
   @@index([status])
+}
+
+/// Customer-facing promo codes + discount rules (EAT-50 / ADR 0020).
+enum PromotionDiscountType {
+  PERCENT_OFF
+  AMOUNT_OFF
+}
+
+model Promotion {
+  id                    String                @id @default(uuid())
+  /// Normalized uppercase code customers enter at checkout.
+  code                  String                @unique
+  active                Boolean               @default(true)
+  discountType          PromotionDiscountType
+  /// Basis points; 1000 = 10%. Required for PERCENT_OFF.
+  percentOffBps         Int?
+  /// Minor units. Required for AMOUNT_OFF.
+  amountOffCents        Int?
+  /// Required when discountType is AMOUNT_OFF.
+  currency              String?
+  startsAt              DateTime?
+  endsAt                DateTime?
+  minItemsSubtotalCents Int?
+  maxRedemptions        Int?
+  maxRedemptionsPerUser Int?
+  redeemedCount         Int                   @default(0)
+  /// Null = platform-wide; otherwise only that restaurant's carts.
+  restaurantId          String?
+  restaurant            Restaurant?           @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  redemptions PromotionRedemption[]
+
+  @@index([restaurantId])
+  @@index([active])
+}
+
+/// One successful checkout redemption per order.
+model PromotionRedemption {
+  id            String     @id @default(uuid())
+  promotionId   String
+  promotion     Promotion  @relation(fields: [promotionId], references: [id], onDelete: Restrict)
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  orderId       String     @unique
+  order         Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  discountCents Int
+  createdAt     DateTime   @default(now())
+
+  @@index([promotionId, userId])
+  @@index([userId])
 }
 
 /// PaymentIntent-aligned money FSM for an order (EAT-46 / ADR 0015).
