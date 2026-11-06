@@ -27,6 +27,7 @@ import {
   type TransitionActorRole,
   allowedTargets,
 } from './order-transitions';
+import { deriveKitchenTiming, isNewPartnerOrder } from './kitchen-timing';
 
 export interface CreateOrderFromCheckoutInput {
   userId: string;
@@ -90,6 +91,94 @@ export class OrdersService {
       createdAt: order.createdAt,
       isActive: !(PAST_STATUSES as readonly string[]).includes(order.status),
     }));
+
+    return {
+      orders,
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize) || 0,
+    };
+  }
+
+  /**
+   * Partner incoming queue: membership-gated, newest first (ADR 0012).
+   */
+  async listPartnerOrders(
+    userId: string,
+    query: {
+      restaurantId: string;
+      branchId?: string;
+      status?: OrderStatusValue[];
+      page?: number;
+      pageSize?: number;
+    },
+  ) {
+    const { restaurantId } = query;
+    await this.ownership.assertActiveMember(userId, restaurantId);
+
+    if (query.branchId) {
+      const branch = await prisma.restaurantBranch.findFirst({
+        where: { id: query.branchId, restaurantId },
+        select: { id: true },
+      });
+      if (!branch) {
+        throw new BadRequestException('branchId does not belong to restaurantId');
+      }
+    }
+
+    const page = Math.max(1, query.page ?? 1);
+    const pageSize = Math.min(50, Math.max(1, query.pageSize ?? 20));
+    const skip = (page - 1) * pageSize;
+
+    const where = {
+      restaurantBranch: {
+        restaurantId,
+        ...(query.branchId ? { id: query.branchId } : {}),
+      },
+      ...(query.status && query.status.length > 0
+        ? { status: { in: query.status } }
+        : {}),
+    };
+
+    const [total, rows] = await Promise.all([
+      prisma.order.count({ where }),
+      prisma.order.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+        include: {
+          _count: { select: { items: true } },
+          restaurantBranch: { select: { id: true, restaurantId: true } },
+          history: {
+            orderBy: { createdAt: 'asc' },
+            select: { toStatus: true, createdAt: true },
+          },
+        },
+      }),
+    ]);
+
+    const orders = rows.map((order) => {
+      const timing = deriveKitchenTiming(order.history);
+      return {
+        id: order.id,
+        status: order.status,
+        restaurantId: order.restaurantBranch.restaurantId,
+        restaurantBranchId: order.restaurantBranchId,
+        restaurantName: order.restaurantName,
+        branchName: order.branchName,
+        fulfillmentType: order.fulfillmentType,
+        currency: order.currency,
+        total: order.totalCents,
+        itemCount: order._count.items,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        /** Still awaiting partner accept/reject — see ADR 0012. */
+        isNew: isNewPartnerOrder(order.status),
+        timing,
+      };
+    });
 
     return {
       orders,

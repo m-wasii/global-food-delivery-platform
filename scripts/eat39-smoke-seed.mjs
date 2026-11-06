@@ -1,5 +1,6 @@
 /**
- * One-off EAT-39 smoke seed. Valid RFC UUID v4 IDs.
+ * M05 partner smoke seed (EAT-39 shell + EAT-40 queue). Valid RFC UUID v4 IDs.
+ * Seeds a PENDING order (New highlight) and a CONFIRMED order (In progress).
  * Run: node --env-file=.env scripts/eat39-smoke-seed.mjs
  */
 import { createRequire } from 'node:module';
@@ -28,6 +29,13 @@ const IDS = {
   addrA: 'e1111111-1111-4111-8111-111111111111',
   addrB: 'e2222222-2222-4222-8222-222222222222',
   membership: 'f1111111-1111-4111-8111-111111111111',
+  orderPending: 'aa111111-1111-4111-8111-111111111111',
+  orderConfirmed: 'aa222222-2222-4222-8222-222222222222',
+  itemPending: 'ab111111-1111-4111-8111-111111111111',
+  itemConfirmed: 'ab222222-2222-4222-8222-222222222222',
+  histPending: 'ac111111-1111-4111-8111-111111111111',
+  histConfirmedPending: 'ac222222-2222-4222-8222-222222222222',
+  histConfirmedAccept: 'ac333333-3333-4333-8333-333333333333',
 };
 
 const PASSWORD = 'SmokeTest1!';
@@ -151,6 +159,48 @@ async function main() {
     update: { role: 'OWNER', status: 'ACTIVE' },
   });
 
+  const pendingCreatedAt = new Date(Date.now() - 2 * 60_000);
+  const confirmedCreatedAt = new Date(Date.now() - 15 * 60_000);
+  const confirmedAcceptedAt = new Date(Date.now() - 10 * 60_000);
+
+  await upsertQueueOrder({
+    id: IDS.orderPending,
+    itemId: IDS.itemPending,
+    status: 'PENDING',
+    createdAt: pendingCreatedAt,
+    itemName: 'Smoke Burger (new)',
+    history: [
+      {
+        id: IDS.histPending,
+        fromStatus: null,
+        toStatus: 'PENDING',
+        createdAt: pendingCreatedAt,
+      },
+    ],
+  });
+
+  await upsertQueueOrder({
+    id: IDS.orderConfirmed,
+    itemId: IDS.itemConfirmed,
+    status: 'CONFIRMED',
+    createdAt: confirmedCreatedAt,
+    itemName: 'Smoke Fries (in progress)',
+    history: [
+      {
+        id: IDS.histConfirmedPending,
+        fromStatus: null,
+        toStatus: 'PENDING',
+        createdAt: confirmedCreatedAt,
+      },
+      {
+        id: IDS.histConfirmedAccept,
+        fromStatus: 'PENDING',
+        toStatus: 'CONFIRMED',
+        createdAt: confirmedAcceptedAt,
+      },
+    ],
+  });
+
   console.log(
     JSON.stringify(
       {
@@ -160,12 +210,106 @@ async function main() {
         restaurantId: IDS.restaurant,
         branchA: IDS.branchA,
         branchB: IDS.branchB,
+        pendingOrderId: IDS.orderPending,
+        confirmedOrderId: IDS.orderConfirmed,
         ordersUrl: `http://localhost:3002/r/${IDS.restaurant}/b/${IDS.branchA}/orders`,
+        hint: 'Log in as owner → Orders: New (PENDING highlight) vs In progress (CONFIRMED)',
       },
       null,
       2,
     ),
   );
+}
+
+async function upsertQueueOrder({
+  id,
+  itemId,
+  status,
+  createdAt,
+  itemName,
+  history,
+}) {
+  await prisma.order.upsert({
+    where: { id },
+    create: {
+      id,
+      userId: IDS.customer,
+      restaurantBranchId: IDS.branchA,
+      restaurantName: 'Smoke Kitchen',
+      branchName: 'Branch A',
+      fulfillmentType: 'DELIVERY',
+      deliveryAddressId: IDS.addrA,
+      deliveryLabel: 'Home',
+      deliveryLine1: '1 Smoke St',
+      deliveryCity: 'Lahore',
+      deliveryRegion: 'Punjab',
+      deliveryPostalCode: '54000',
+      deliveryCountry: 'PK',
+      status,
+      currency: 'PKR',
+      itemsSubtotalCents: 1500,
+      discountCents: 0,
+      serviceFeeCents: 100,
+      deliveryFeeCents: 200,
+      taxCents: 0,
+      taxRateBps: 0,
+      totalCents: 1800,
+      createdAt,
+      updatedAt: createdAt,
+      items: {
+        create: {
+          id: itemId,
+          name: itemName,
+          unitPriceCents: 1500,
+          quantity: 1,
+          lineTotalCents: 1500,
+        },
+      },
+      history: {
+        create: history.map((h) => ({
+          id: h.id,
+          fromStatus: h.fromStatus,
+          toStatus: h.toStatus,
+          actorUserId: h.toStatus === 'CONFIRMED' ? IDS.owner : IDS.customer,
+          createdAt: h.createdAt,
+        })),
+      },
+    },
+    update: {
+      status,
+      restaurantName: 'Smoke Kitchen',
+      branchName: 'Branch A',
+      totalCents: 1800,
+      createdAt,
+      updatedAt: createdAt,
+    },
+  });
+
+  // Re-run history/items for idempotent re-seeds (upsert update cannot nest easily).
+  await prisma.orderItem.deleteMany({ where: { orderId: id } });
+  await prisma.orderStatusHistory.deleteMany({ where: { orderId: id } });
+  await prisma.orderItem.create({
+    data: {
+      id: itemId,
+      orderId: id,
+      name: itemName,
+      unitPriceCents: 1500,
+      quantity: 1,
+      lineTotalCents: 1500,
+    },
+  });
+  for (const h of history) {
+    await prisma.orderStatusHistory.create({
+      data: {
+        id: h.id,
+        orderId: id,
+        fromStatus: h.fromStatus,
+        toStatus: h.toStatus,
+        actorUserId: h.toStatus === 'CONFIRMED' ? IDS.owner : IDS.customer,
+        createdAt: h.createdAt,
+      },
+    });
+  }
 }
 
 main()
