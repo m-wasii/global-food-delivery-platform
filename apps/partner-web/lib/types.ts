@@ -68,3 +68,21 @@ export const PARTNER_QUEUE_STATUSES = [
   'PREPARING',
   'READY',
 ] as const;
+
+/** Partner reject reason codes (EAT-41) — mirrors API REJECT_REASONS. */
+export const REJECT_REASONS = [
+  'OUT_OF_STOCK',
+  'TOO_BUSY',
+  'CLOSING_SOON',
+  'OTHER',
+] as const;
+
+export type RejectReasonCode = (typeof REJECT_REASONS)[number];
+
+export type PartnerTransitionTarget =
+  | 'CONFIRMED'
+  | 'REJECTED'
+  | 'PREPARING'
+  | 'READY'
+  | 'COMPLETED'
+  | 'CANCELLED';
