@@ -62,6 +62,16 @@ export function deriveKitchenTiming(
 }
 
 /**
+ * Timing payload for order detail / list / analytics (EAT-44).
+ * Accept, prep start, ready, and rejection (plus related statuses) from history.
+ */
+export function orderTimingFields(
+  history: ReadonlyArray<HistoryTimingEvent>,
+): { timing: KitchenTiming } {
+  return { timing: deriveKitchenTiming(history) };
+}
+
+/**
  * Partner queue "new" heuristic: still awaiting accept/reject.
  * Clients may also use createdAt for age-based highlighting.
  */

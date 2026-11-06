@@ -39,7 +39,12 @@ Timestamps are the **first** `OrderStatusHistory.createdAt` where `toStatus` mat
 | `cancelledAt` | `CANCELLED` |
 | `rejectedAt` | `REJECTED` |
 
-Implemented as a pure helper (`deriveKitchenTiming`) and attached to partner list DTOs (nullable ISO strings). Analytics/dispatch can reuse the same derivation later.
+Implemented as pure helpers (`deriveKitchenTiming` / `orderTimingFields`) and attached as nullable ISO strings on:
+
+- `GET /partner/orders` list items (queue wait ages)
+- `GET /orders/:id` and transition responses (analytics / dispatch feed)
+
+History rows remain the system of record; no denormalized columns on `Order`.
 
 ### Why not denormalize
 
