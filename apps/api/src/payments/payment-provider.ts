@@ -1,10 +1,14 @@
+import type { NormalizedRefundWebhook } from './refund-webhook-parse';
+
 /**
  * Provider-neutral payment port (EAT-45).
  * Verbs mirror Stripe PaymentIntents + Adyen Checkout modifications:
- * authorize (manual capture), capture, cancel, refund, getStatus.
+ * authorize (manual capture), capture, cancel, refund, getStatus, parseWebhook.
  * Order/checkout code depends on this interface — never a vendor SDK.
  * Amounts are integer minor units (cents), matching the pricing engine.
  */
+
+export type { NormalizedRefundWebhook };
 
 export const PAYMENT_PROVIDER = Symbol('PAYMENT_PROVIDER');
 
@@ -91,4 +95,9 @@ export interface PaymentProvider {
   cancel(input: CancelPaymentInput): Promise<PaymentSnapshot>;
   refund(input: RefundPaymentInput): Promise<PaymentSnapshot>;
   getStatus(providerPaymentId: string): Promise<PaymentSnapshot>;
+  /**
+   * Normalize a provider webhook payload. Refund settlement events return a
+   * `NormalizedRefundWebhook`; unrelated payloads return null (EAT-80).
+   */
+  parseWebhook(payload: unknown): Promise<NormalizedRefundWebhook | null>;
 }

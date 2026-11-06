@@ -18,16 +18,21 @@ import { IDEMPOTENCY_STORE } from '../common/idempotency.tokens';
 import type { OrderStatusValue } from '../orders/order-transitions';
 import {
   PAYMENT_PROVIDER,
+  type NormalizedRefundWebhook,
   type PaymentProvider,
   type PaymentStatusValue,
 } from './payment-provider';
-import { createRefundDraft } from './refund-record';
+import {
+  createRefundDraft,
+  type RefundStatusValue,
+} from './refund-record';
 import {
   refundIssueRequest,
   refundIssueScope,
   toRefundHttpResponse,
 } from './refund-http';
 import { planRefund } from './refund-rules';
+import { planRefundWebhookApply } from './refund-webhook';
 
 export interface IssueRefundInput {
   paymentId: string;
@@ -159,5 +164,108 @@ export class RefundsService {
       where: { paymentId },
       orderBy: { createdAt: 'asc' },
     });
+  }
+
+  /**
+   * PSP ingress: provider.parseWebhook → Refund.status (+ payment amount unwind).
+   * Duplicate deliveries that already match the target status are no-ops (EAT-80).
+   */
+  async applyProviderWebhook(payload: unknown) {
+    const event = await this.provider.parseWebhook(payload);
+    if (!event) {
+      return { handled: false as const, reason: 'ignored' as const };
+    }
+    return this.applyRefundWebhook(event);
+  }
+
+  async applyRefundWebhook(event: NormalizedRefundWebhook) {
+    const refund = await prisma.refund.findFirst({
+      where: { providerRefundId: event.providerRefundId },
+      include: {
+        payment: {
+          include: { order: { select: { status: true } } },
+        },
+      },
+    });
+    if (!refund) {
+      return {
+        handled: false as const,
+        reason: 'refund_not_found' as const,
+        providerRefundId: event.providerRefundId,
+      };
+    }
+
+    let planned;
+    try {
+      planned = planRefundWebhookApply({
+        currentRefundStatus: refund.status as RefundStatusValue,
+        nextRefundStatus: event.status,
+        paymentStatus: refund.payment.status as PaymentStatusValue,
+        orderStatus: refund.payment.order.status as OrderStatusValue,
+        amountReceivedCents: refund.payment.amountReceivedCents,
+        refundedAmountCents: refund.payment.refundedAmountCents,
+        refundAmountCents: refund.amountCents,
+      });
+    } catch (err) {
+      // Surface drift for ops instead of leaving money wrong silently.
+      await prisma.payment.update({
+        where: { id: refund.paymentId },
+        data: { reconciliationNeeded: true },
+      });
+      throw new BadRequestException(
+        err instanceof Error ? err.message : 'Invalid refund webhook',
+      );
+    }
+
+    if (planned.noop) {
+      return {
+        handled: true as const,
+        noop: true as const,
+        refundId: refund.id,
+        status: planned.refundStatus,
+      };
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const nextRefund = await tx.refund.update({
+        where: { id: refund.id },
+        data: {
+          status: planned.refundStatus,
+          ...(event.failureReason
+            ? { reason: event.failureReason }
+            : {}),
+        },
+      });
+
+      if (planned.payment) {
+        await tx.payment.update({
+          where: { id: refund.paymentId },
+          data: {
+            status: planned.payment.nextStatus,
+            refundedAmountCents: planned.payment.nextRefundedAmountCents,
+            reconciliationNeeded: false,
+          },
+        });
+        await tx.paymentStatusHistory.create({
+          data: {
+            paymentId: refund.paymentId,
+            fromStatus: refund.payment.status,
+            toStatus: planned.payment.nextStatus,
+            reason: planned.payment.reverseAmounts
+              ? 'refund_webhook_failed'
+              : 'refund_webhook_succeeded',
+          },
+        });
+      }
+
+      return nextRefund;
+    });
+
+    return {
+      handled: true as const,
+      noop: false as const,
+      refundId: updated.id,
+      status: updated.status,
+    };
   }
 }

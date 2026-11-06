@@ -247,6 +247,10 @@ describe('PaymentProvider contract', () => {
           amountReceivedCents: row.amountReceivedCents,
         };
       }
+
+      async parseWebhook() {
+        return null;
+      }
     }
 
     await authorizeCaptureRefund(new AlternatePaymentProvider());

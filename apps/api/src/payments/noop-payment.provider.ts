@@ -7,11 +7,13 @@ import type {
   AuthorizePaymentInput,
   CancelPaymentInput,
   CapturePaymentInput,
+  NormalizedRefundWebhook,
   PaymentProvider,
   PaymentSnapshot,
   PaymentStatusValue,
   RefundPaymentInput,
 } from './payment-provider';
+import { parseNoopRefundWebhook } from './refund-webhook-parse';
 
 interface StoredPayment {
   amountCents: number;
@@ -152,6 +154,12 @@ export class NoopPaymentProvider implements PaymentProvider {
   async getStatus(providerPaymentId: string): Promise<PaymentSnapshot> {
     const row = this.require(providerPaymentId);
     return this.toSnapshot(providerPaymentId, row);
+  }
+
+  async parseWebhook(
+    payload: unknown,
+  ): Promise<NormalizedRefundWebhook | null> {
+    return parseNoopRefundWebhook(payload);
   }
 
   private require(providerPaymentId: string): StoredPayment {
