@@ -90,6 +90,7 @@ Or individually:
 ```bash
 pnpm --filter @food-delivery/api dev
 pnpm --filter @food-delivery/customer-web dev
+pnpm --filter @food-delivery/partner-web dev
 ```
 
 
@@ -97,6 +98,7 @@ pnpm --filter @food-delivery/customer-web dev
 | ------------ | ------------------------------------------------------ |
 | API          | [http://localhost:3001](http://localhost:3001)         |
 | Customer web | [http://localhost:3000](http://localhost:3000)         |
+| Partner web  | [http://localhost:3002](http://localhost:3002)         |
 | API docs     | [http://localhost:3001/api](http://localhost:3001/api) |
 
 
@@ -120,9 +122,8 @@ Expect HTTP 200 and `"status":"ok"` when Postgres and Redis are up. On Windows P
 | `pnpm test`      | Run tests              |
 | `pnpm build`     | Build all packages     |
 
-
-
+Tests follow [TDD](docs/development/tdd.md) for new behavior and bug fixes.
 
 ## Status
 
-Foundation phase — core repo, database, API health, docs, and CI are in place.
+Foundation through Cart & Ordering are in place. Restaurant Operations starts with the partner dashboard shell (see [ADR 0011](docs/decisions/0011-partner-web-shell.md)).
