@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PAYMENT_PROVIDER } from './payment-provider';
 import { NoopPaymentProvider } from './noop-payment.provider';
 import { PaymentsService } from './payments.service';
+import { RefundsService } from './refunds.service';
 
 @Module({
   providers: [
@@ -11,7 +12,13 @@ import { PaymentsService } from './payments.service';
       useExisting: NoopPaymentProvider,
     },
     PaymentsService,
+    RefundsService,
   ],
-  exports: [PAYMENT_PROVIDER, NoopPaymentProvider, PaymentsService],
+  exports: [
+    PAYMENT_PROVIDER,
+    NoopPaymentProvider,
+    PaymentsService,
+    RefundsService,
+  ],
 })
 export class PaymentsModule {}

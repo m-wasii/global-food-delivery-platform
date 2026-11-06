@@ -57,6 +57,7 @@ model User {
   adminGrant              AdminGrant?
   restaurantMemberships   RestaurantMembership[]
   mediaAssets             MediaAsset[]
+  refunds                 Refund[]
 }
 
 model CourierProfile {
@@ -414,6 +415,7 @@ model Order {
   items   OrderItem[]
   history OrderStatusHistory[]
   payment Payment?
+  refunds Refund[]
 
   @@index([userId])
   @@index([restaurantBranchId])
@@ -455,10 +457,40 @@ model Payment {
   updatedAt              DateTime      @updatedAt
 
   history PaymentStatusHistory[]
+  refunds Refund[]
 
   @@unique([provider, providerPaymentId])
   @@index([status])
   @@index([reconciliationNeeded])
+}
+
+/// Append-only refund ledger rows (EAT-48). Always linked to payment + order.
+enum RefundStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+model Refund {
+  id               String       @id @default(uuid())
+  paymentId        String
+  payment          Payment      @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  orderId          String
+  order            Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amountCents      Int
+  currency         String
+  status           RefundStatus @default(SUCCEEDED)
+  reason           String?
+  /// Provider refund id when the rail returns one (Stripe `re_…` / Adyen pspReference).
+  providerRefundId String?
+  actorUserId      String?
+  actor            User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([paymentId, createdAt])
+  @@index([orderId, createdAt])
+  @@index([actorUserId])
 }
 
 /// Append-only audit of payment status changes (EAT-46).

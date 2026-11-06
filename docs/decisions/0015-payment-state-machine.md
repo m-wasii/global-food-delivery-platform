@@ -57,10 +57,11 @@ Partial-refund amount bumps that stay `PARTIALLY_REFUNDED` update amounts + hist
 
 ## Explicitly deferred
 
-- Refund API productization (EAT-48)
-- Webhook ingress / `parseWebhook`
+- Webhook ingress / `parseWebhook` (refund path → **EAT-80**)
 - Background reconciliation jobs / ledger
 - Multi-payment instalments per order
+
+Refund productization (records + rules): [ADR 0017](./0017-refund-records.md) (EAT-48).
 
 ## Consequences
 
