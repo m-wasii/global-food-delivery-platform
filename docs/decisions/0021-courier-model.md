@@ -20,7 +20,7 @@ Represent couriers as a **`CourierProfile` capability row** on the shared `User`
 | `CourierVehicleType` | `BICYCLE` \| `SCOOTER` \| `MOTORCYCLE` \| `CAR` |
 | `CapabilityStatus` | Reused: `PENDING` → `ACTIVE` → `SUSPENDED` (platform employment / approval) |
 | `isCourierOnboardingComplete` | Pure check: phone + vehicle (+ license when motorized) + operating city |
-| `isCourierDispatchEligible` | Pure check: `ACTIVE` + complete onboarding (availability still EAT-52) |
+| `isCourierDispatchEligible` | Pure check: `ACTIVE` + complete onboarding (live online gate: [ADR 0022](./0022-courier-availability.md)) |
 
 Vehicle details live **on the profile** for v1 (one active vehicle). A separate fleet/`Vehicle` table is deferred.
 
@@ -29,7 +29,7 @@ Vehicle details live **on the profile** for v1 (one active vehicle). A separate 
 | Concern | Owner | Notes |
 | --- | --- | --- |
 | Capability / employment | `CourierProfile.status` | Only `ACTIVE` grants courier capability (existing auth guards) |
-| Online / offline | EAT-52 | Not modeled here; an ACTIVE courier may still be offline |
+| Online / offline | [ADR 0022](./0022-courier-availability.md) (EAT-52) | `isOnline`; ACTIVE courier may still be offline |
 | Location | EAT-53 | Latest position separate from profile |
 
 ## Onboarding fields
@@ -44,15 +44,15 @@ Default status on create: `PENDING`. Activation sets `status = ACTIVE` and `acti
 
 ## Explicitly deferred
 
-- Online/offline and offer eligibility gating (EAT-52)
+- Online/offline and offer eligibility gating → [ADR 0022](./0022-courier-availability.md) (EAT-52)
 - Live location (EAT-53)
 - Document/KYC uploads and expiry auto-suspend
 - Multi-vehicle fleet assignment
 - Courier payout / bank details
-- HTTP courier onboarding CRUD (seed / ops insert for now; APIs follow availability work)
+- HTTP courier onboarding CRUD (seed / ops insert for now)
 
 ## Consequences
 
 - Auth capability resolution stays on `CourierProfile.status === ACTIVE`.
-- Dispatch (EAT-55+) filters with `isCourierDispatchEligible` plus later availability/location.
-- Architecture domain “Courier & Delivery” references this ADR.
+- Dispatch (EAT-55+) filters with `canCourierReceiveOffers` (eligibility + online) plus later location.
+- Architecture domain “Courier & Delivery” references this ADR and ADR 0022.
