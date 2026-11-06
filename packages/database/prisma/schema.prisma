@@ -61,13 +61,30 @@ model User {
   promotionRedemptions    PromotionRedemption[]
 }
 
+/// Courier identity & onboarding, distinct from the shared User account (EAT-51 / ADR 0021).
 model CourierProfile {
-  id        String           @id @default(uuid())
-  userId    String           @unique
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status    CapabilityStatus @default(PENDING)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id              String              @id @default(uuid())
+  userId          String              @unique
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Platform capability / employment status (not online/offline — that is EAT-52).
+  status          CapabilityStatus    @default(PENDING)
+  phone           String?
+  vehicleType     CourierVehicleType?
+  vehiclePlate    String?
+  licenseNumber   String?
+  operatingCityId String?
+  operatingCity   OperatingCity?      @relation(fields: [operatingCityId], references: [id], onDelete: SetNull)
+  /// When the courier submitted onboarding fields for review.
+  submittedAt     DateTime?
+  /// When status first became ACTIVE.
+  activatedAt     DateTime?
+  /// Optional admin note from onboarding review.
+  reviewNotes     String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([status])
+  @@index([operatingCityId])
 }
 
 model AdminGrant {
@@ -140,6 +157,7 @@ model OperatingCity {
   updatedAt DateTime @updatedAt
 
   branches RestaurantBranch[]
+  couriers CourierProfile[]
 
   @@index([country, isActive])
 }
@@ -627,6 +645,13 @@ enum CapabilityStatus {
   PENDING
   ACTIVE
   SUSPENDED
+}
+
+enum CourierVehicleType {
+  BICYCLE
+  SCOOTER
+  MOTORCYCLE
+  CAR
 }
 
 enum RestaurantMembershipRole {
