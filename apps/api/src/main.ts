@@ -9,6 +9,7 @@ config({ path: path.resolve(__dirname, '../../../.env') });
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { resolveCorsOrigins } from './common/cors-origins';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -17,7 +18,7 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.use(cookieParser());
   app.enableCors({
-    origin: process.env.PUBLIC_WEB_URL ?? 'http://localhost:3000',
+    origin: resolveCorsOrigins(process.env),
     credentials: true,
   });
 
