@@ -32,6 +32,8 @@ import {
   allowedTargets,
 } from './order-transitions';
 import { isNewPartnerOrder, orderTimingFields } from './kitchen-timing';
+import { assertOrderTransitionKeepsPaymentAligned } from '../payments/order-payment-consistency';
+import type { PaymentStatusValue } from '../payments/payment-provider';
 
 export interface CreateOrderFromCheckoutInput {
   userId: string;
@@ -293,6 +295,21 @@ export class OrdersService {
     }
 
     assertCanTransition(fromStatus, toStatus);
+
+    const payment = await prisma.payment.findUnique({
+      where: { orderId },
+      select: { status: true },
+    });
+    try {
+      assertOrderTransitionKeepsPaymentAligned(
+        toStatus,
+        payment?.status as PaymentStatusValue | undefined,
+      );
+    } catch (err) {
+      throw new BadRequestException(
+        err instanceof Error ? err.message : 'Order and payment diverge',
+      );
+    }
 
     const updated = await prisma.$transaction(async (tx) => {
       const next = await tx.order.update({

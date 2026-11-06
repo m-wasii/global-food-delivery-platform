@@ -49,6 +49,7 @@ model User {
   defaultAddress          Address?  @relation("UserDefaultAddress", fields: [defaultAddressId], references: [id], onDelete: SetNull)
   orders                  Order[]
   orderStatusEvents       OrderStatusHistory[]
+  paymentStatusEvents     PaymentStatusHistory[]
   carts                   Cart[]
   restaurantPreferences   UserRestaurantPreference[]
   emailVerificationTokens EmailVerificationToken[]
@@ -412,11 +413,69 @@ model Order {
 
   items   OrderItem[]
   history OrderStatusHistory[]
+  payment Payment?
 
   @@index([userId])
   @@index([restaurantBranchId])
   @@index([deliveryAddressId])
   @@index([status])
+}
+
+/// PaymentIntent-aligned money FSM for an order (EAT-46 / ADR 0015).
+enum PaymentStatus {
+  REQUIRES_ACTION
+  PROCESSING
+  AUTHORIZED
+  CAPTURED
+  PARTIALLY_REFUNDED
+  REFUNDED
+  FAILED
+  CANCELED
+}
+
+/// One current payment per order. Provider rail is behind PaymentProvider (ADR 0014).
+model Payment {
+  id                     String        @id @default(uuid())
+  orderId                String        @unique
+  order                  Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider               String
+  providerPaymentId      String
+  status                 PaymentStatus
+  amountCents            Int
+  currency               String
+  amountCapturableCents  Int           @default(0)
+  amountReceivedCents    Int           @default(0)
+  refundedAmountCents    Int           @default(0)
+  /// Incremented when retrying out of FAILED.
+  attemptCount           Int           @default(1)
+  /// Set when provider getStatus diverges from local status (ops review).
+  reconciliationNeeded   Boolean       @default(false)
+  lastFailureReason      String?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  history PaymentStatusHistory[]
+
+  @@unique([provider, providerPaymentId])
+  @@index([status])
+  @@index([reconciliationNeeded])
+}
+
+/// Append-only audit of payment status changes (EAT-46).
+model PaymentStatusHistory {
+  id          String         @id @default(uuid())
+  paymentId   String
+  payment     Payment        @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  /// Null when the payment is first created into `toStatus`.
+  fromStatus  PaymentStatus?
+  toStatus    PaymentStatus
+  actorUserId String?
+  actor       User?          @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  reason      String?
+  createdAt   DateTime       @default(now())
+
+  @@index([paymentId, createdAt])
+  @@index([actorUserId])
 }
 
 /// Append-only audit of order status changes (EAT-35).
