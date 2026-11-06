@@ -4,7 +4,12 @@ import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { fetchPartnerOrders, transitionPartnerOrder } from '../../../../../../lib/api';
 import { formatWaitAge, waitAnchorIso } from '../../../../../../lib/order-wait';
-import type { PartnerOrderSummary, RejectReasonCode } from '../../../../../../lib/types';
+import { prepActionForStatus } from '../../../../../../lib/prep-action';
+import type {
+  PartnerOrderSummary,
+  PartnerTransitionTarget,
+  RejectReasonCode,
+} from '../../../../../../lib/types';
 import { REJECT_REASONS } from '../../../../../../lib/types';
 
 const POLL_MS = 5_000;
@@ -40,6 +45,7 @@ function OrderRow({
   onRejectReasonChange,
   onRejectNoteChange,
   onConfirmReject,
+  onPrepAdvance,
 }: {
   order: PartnerOrderSummary;
   nowMs: number;
@@ -57,11 +63,13 @@ function OrderRow({
   onRejectReasonChange: (reason: RejectReasonCode) => void;
   onRejectNoteChange: (note: string) => void;
   onConfirmReject: () => void;
+  onPrepAdvance: (orderId: string, toStatus: PartnerTransitionTarget) => void;
 }) {
   const age = formatWaitAge(waitAnchorIso(order), nowMs);
   const isPending = order.status === 'PENDING' || order.isNew;
   const isBusy = busyOrderId === order.id;
   const isRejecting = rejectDraft?.orderId === order.id;
+  const prepAction = prepActionForStatus(order.status);
 
   return (
     <li
@@ -114,6 +122,18 @@ function OrderRow({
               onClick={() => onBeginReject(order.id)}
             >
               Reject
+            </button>
+          </div>
+        ) : null}
+
+        {!isPending && prepAction ? (
+          <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+            <button
+              type="button"
+              disabled={isBusy || !!rejectDraft}
+              onClick={() => onPrepAdvance(order.id, prepAction.toStatus)}
+            >
+              {isBusy ? prepAction.busyLabel : prepAction.label}
             </button>
           </div>
         ) : null}
@@ -192,6 +212,7 @@ function OrderSection({
   onRejectReasonChange,
   onRejectNoteChange,
   onConfirmReject,
+  onPrepAdvance,
 }: {
   title: string;
   orders: PartnerOrderSummary[];
@@ -212,6 +233,7 @@ function OrderSection({
   onRejectReasonChange: (reason: RejectReasonCode) => void;
   onRejectNoteChange: (note: string) => void;
   onConfirmReject: () => void;
+  onPrepAdvance: (orderId: string, toStatus: PartnerTransitionTarget) => void;
 }) {
   return (
     <section style={{ marginBottom: '1.75rem' }}>
@@ -240,6 +262,7 @@ function OrderSection({
               onRejectReasonChange={onRejectReasonChange}
               onRejectNoteChange={onRejectNoteChange}
               onConfirmReject={onConfirmReject}
+              onPrepAdvance={onPrepAdvance}
             />
           ))}
         </ul>
@@ -321,22 +344,32 @@ export default function OrdersPage() {
     setRefreshToken((n) => n + 1);
   }
 
-  async function handleAccept(orderId: string) {
+  async function runTransition(
+    orderId: string,
+    toStatus: PartnerTransitionTarget,
+    extra?: { rejectReason?: RejectReasonCode; reason?: string },
+  ) {
     setBusyOrderId(orderId);
     setActionError(null);
     setActionErrorOrderId(null);
-    setRejectDraft(null);
     const result = await transitionPartnerOrder({
       orderId,
-      toStatus: 'CONFIRMED',
+      toStatus,
+      ...extra,
     });
     setBusyOrderId(null);
     if (!result.ok) {
       setActionError(result.message);
       setActionErrorOrderId(orderId);
-      return;
+      return false;
     }
     refreshQueue();
+    return true;
+  }
+
+  async function handleAccept(orderId: string) {
+    setRejectDraft(null);
+    await runTransition(orderId, 'CONFIRMED');
   }
 
   function handleBeginReject(orderId: string) {
@@ -352,23 +385,19 @@ export default function OrdersPage() {
   async function handleConfirmReject() {
     if (!rejectDraft) return;
     const { orderId, reason, note } = rejectDraft;
-    setBusyOrderId(orderId);
-    setActionError(null);
-    setActionErrorOrderId(null);
-    const result = await transitionPartnerOrder({
-      orderId,
-      toStatus: 'REJECTED',
+    const ok = await runTransition(orderId, 'REJECTED', {
       rejectReason: reason,
       reason: note,
     });
-    setBusyOrderId(null);
-    if (!result.ok) {
-      setActionError(result.message);
-      setActionErrorOrderId(orderId);
-      return;
-    }
+    if (ok) setRejectDraft(null);
+  }
+
+  async function handlePrepAdvance(
+    orderId: string,
+    toStatus: PartnerTransitionTarget,
+  ) {
     setRejectDraft(null);
-    refreshQueue();
+    await runTransition(orderId, toStatus);
   }
 
   const sectionProps = {
@@ -377,7 +406,9 @@ export default function OrdersPage() {
     actionError,
     actionErrorOrderId,
     rejectDraft,
-    onAccept: handleAccept,
+    onAccept: (orderId: string) => {
+      void handleAccept(orderId);
+    },
     onBeginReject: handleBeginReject,
     onCancelReject: () => setRejectDraft(null),
     onRejectReasonChange: (reason: RejectReasonCode) =>
@@ -386,6 +417,9 @@ export default function OrdersPage() {
       setRejectDraft((d) => (d ? { ...d, note } : d)),
     onConfirmReject: () => {
       void handleConfirmReject();
+    },
+    onPrepAdvance: (orderId: string, toStatus: PartnerTransitionTarget) => {
+      void handlePrepAdvance(orderId, toStatus);
     },
   };
 
