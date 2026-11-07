@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canCourierGoOnline,
+  canCourierReceiveOffers,
   isCourierDispatchEligible,
   isCourierOnboardingComplete,
   requiresLicenseNumber,
@@ -132,5 +134,62 @@ describe('isCourierDispatchEligible', () => {
         ...complete,
       }),
     ).toBe(true);
+  });
+});
+
+describe('canCourierReceiveOffers', () => {
+  const eligible = {
+    status: 'ACTIVE' as const,
+    phone: '+923001234567',
+    vehicleType: 'BICYCLE' as const,
+    operatingCityId: 'city-1',
+    licenseNumber: null as string | null,
+  };
+
+  it('requires dispatch eligibility and online availability', () => {
+    expect(canCourierReceiveOffers({ ...eligible, isOnline: false })).toBe(false);
+    expect(canCourierReceiveOffers({ ...eligible, isOnline: true })).toBe(true);
+  });
+
+  it('rejects online but non-eligible couriers', () => {
+    expect(
+      canCourierReceiveOffers({
+        ...eligible,
+        status: 'SUSPENDED',
+        isOnline: true,
+      }),
+    ).toBe(false);
+
+    expect(
+      canCourierReceiveOffers({
+        ...eligible,
+        phone: null,
+        isOnline: true,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe('canCourierGoOnline', () => {
+  it('allows only dispatch-eligible couriers to go online', () => {
+    expect(
+      canCourierGoOnline({
+        status: 'ACTIVE',
+        phone: '+923001234567',
+        vehicleType: 'BICYCLE',
+        operatingCityId: 'city-1',
+        licenseNumber: null,
+      }),
+    ).toBe(true);
+
+    expect(
+      canCourierGoOnline({
+        status: 'PENDING',
+        phone: '+923001234567',
+        vehicleType: 'BICYCLE',
+        operatingCityId: 'city-1',
+        licenseNumber: null,
+      }),
+    ).toBe(false);
   });
 });

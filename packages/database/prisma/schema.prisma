@@ -66,7 +66,7 @@ model CourierProfile {
   id              String              @id @default(uuid())
   userId          String              @unique
   user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// Platform capability / employment status (not online/offline — that is EAT-52).
+  /// Platform capability / employment status (not online/offline — that is EAT-52 / ADR 0022).
   status          CapabilityStatus    @default(PENDING)
   phone           String?
   vehicleType     CourierVehicleType?
@@ -74,6 +74,10 @@ model CourierProfile {
   licenseNumber   String?
   operatingCityId String?
   operatingCity   OperatingCity?      @relation(fields: [operatingCityId], references: [id], onDelete: SetNull)
+  /// Live on-duty switch (EAT-52). Default offline; only dispatch-eligible couriers may go online.
+  isOnline        Boolean             @default(false)
+  /// Last time isOnline changed (set or clear).
+  onlineChangedAt DateTime?
   /// When the courier submitted onboarding fields for review.
   submittedAt     DateTime?
   /// When status first became ACTIVE.
@@ -85,6 +89,7 @@ model CourierProfile {
 
   @@index([status])
   @@index([operatingCityId])
+  @@index([isOnline])
 }
 
 model AdminGrant {
