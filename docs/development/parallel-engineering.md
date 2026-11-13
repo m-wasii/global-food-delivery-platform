@@ -13,7 +13,7 @@ The unit of planning should be an independently verifiable product or engineerin
 
 ## 2. Organize work around bounded contexts
 
-Use these as default ownership lanes. Assign every issue one primary lane and one directly responsible engineer or agent. A lane is an ownership boundary, not a separate deployment or a prohibition on cross-domain collaboration.
+Use these as default ownership lanes. Assign every issue one primary lane and one human accountable owner. The accountable owner may delegate implementation to Cursor agents; being assigned in Linear does not mean that person must implement the code personally. A lane is an ownership boundary, not a separate deployment or a prohibition on cross-domain collaboration.
 
 | Workstream | Primary responsibility | Typical ownership surfaces |
 | --- | --- | --- |
@@ -26,6 +26,40 @@ Use these as default ownership lanes. Assign every issue one primary lane and on
 Keep work vertical where possible: a contributor should own the behavior, tests, and relevant UI/API changes for a bounded feature. Do not split backend and frontend into separate dependent tickets merely because they live in different folders. Split them only where the interface is stable enough for both sides to proceed independently.
 
 The Platform & Integration lane enables the other lanes; it must not become the team that implements every shared-file change. Domain owners remain responsible for their domain's schema needs, tests, and integration readiness.
+
+
+## 2A. Cursor-driven multi-agent execution
+
+For this project, the human project owner remains accountable for priorities, product decisions, architecture approval, and final acceptance. Linear assignees represent that accountability; they are not a record of who is typing the code.
+
+**Cursor is the primary engineering driver** for implementation. It should inspect the repository and relevant Linear issues, prepare bounded execution briefs, launch and coordinate parallel agents, monitor their changes, run integration checks, and report decisions or blockers that require human input.
+
+Use this division of responsibility:
+
+| Role | Responsibility |
+| --- | --- |
+| Human project owner | Priorities, scope trade-offs, architecture decisions, risk acceptance, review of material changes, final acceptance |
+| Cursor driver | Converts approved issues into execution plans; selects agent boundaries; prepares briefs; starts isolated work; coordinates merges; runs integrated verification |
+| Cursor implementation agents | Implement one bounded deliverable each, follow its brief, test their changes, report files changed, decisions, risks, and verification evidence |
+| Linear | Tracks the accountable owner, workstream, status, dependencies, and acceptance criteria |
+| GitHub | Holds isolated branches/PRs, review evidence, and the integrated source of truth |
+
+### Delegation rules
+
+- Keep the issue assigned to the human accountable owner unless responsibility genuinely transfers to another human.
+- Cursor should create one execution brief per implementation agent. Each brief must state the goal, acceptance criteria, allowed/owned paths, paths that must not be edited, contracts, dependencies, test commands, branch/worktree, and hand-back format.
+- Give every concurrent coding agent an isolated worktree and branch. Do not let agents concurrently edit the same working tree.
+- Prefer disjoint file ownership. If two deliverables need the same shared file, have the Cursor driver define a short integration contract and designate one agent as the sole editor for that file.
+- Agents should return implementation evidence, not just completion claims: commit/branch reference, files changed, tests run and results, migration impact, known limitations, and any follow-up required.
+- Cursor integrates the work, resolves conflicts deliberately, runs cross-workstream checks, and updates Linear only after verifying the actual repository state.
+- Escalate product ambiguity, material architecture changes, destructive data decisions, security-sensitive trade-offs, or failed integration that requires a scope decision to the human owner. Do not ask the human to approve routine implementation details already covered by the brief.
+- Do not spawn agents merely to maximize agent count. Parallelize only when tasks have sufficiently independent ownership and interfaces; keep a single agent on tightly coupled work.
+
+### Linear issue assignment versus agent execution
+
+Linear is the planning and accountability layer, not the live agent scheduler. A single issue may be implemented by one Cursor agent or decomposed by the Cursor driver into a small set of parallel execution tasks. Create separate Linear child issues only when the sub-deliverables are independently meaningful, need separate progress/acceptance tracking, or require distinct ownership. Do not create a Linear ticket for every agent action or prompt.
+
+The Cursor driver should maintain an execution map linking each active issue to its agent brief, branch/worktree, owned paths, and integration status. Keep this lightweight and current; do not turn it into a second project-management system.
 
 ## 3. Rebuild the roadmap as outcomes plus a dependency graph
 
