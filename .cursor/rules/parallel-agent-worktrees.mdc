@@ -1,0 +1,62 @@
+---
+description: One write agent per Git worktree with explicit ownership boundaries
+alwaysApply: true
+---
+
+# Parallel agent worktrees
+
+## Hard rules
+
+- **One write agent ↔ one branch ↔ one worktree** under `.worktrees/<branch-slug>/`.
+- Never run two write agents in the same worktree. Read-only discovery and review agents may share a checkout.
+- Start with at most **3 concurrent write agents**. Increase only when the user explicitly requests it and the integration capacity supports it.
+- Never commit implementation work directly to `main`.
+- The primary checkout is an orchestration/read-only workspace. All implementation edits happen in the owning agent's worktree.
+- Do not let two agents own the same domain directory, Prisma schema/migrations, shared contract file, root manifest, lockfile, Compose file, or CI workflow.
+- If scope overlaps, stop and report the collision to the coordinator. Do not "just edit" the shared file.
+
+## Before writing
+
+1. Read the relevant Linear issue and the EatWave Parallel Engineering Operating Model.
+2. Confirm the active branch and worktree:
+   ```powershell
+   git rev-parse --show-toplevel
+   git rev-parse --git-dir
+   git rev-parse --git-common-dir
+   git branch --show-current
+   ```
+3. If in the primary checkout, create an isolated worktree from the latest `origin/main`:
+   ```powershell
+   .\scripts\new-worktree.ps1 feat/<short-scope>
+   ```
+4. Move the writer/agent root into the returned worktree before editing.
+5. Confirm the Linear issue, exact allowed paths, excluded shared paths, contract assumptions, acceptance criteria, and verification commands.
+
+## Scope ownership
+
+- API work is limited to the issue's domain directory under `apps/api/src/<domain>/` and its domain tests, unless the brief explicitly names additional paths.
+- Customer UI work belongs under `apps/customer-web/`; partner UI work belongs under `apps/partner-web/`.
+- Prisma schema and migration changes are serialized through one designated schema owner/integrator. Other agents describe required model changes in their handoff; they do not concurrently edit the schema or migrations.
+- `packages/types/src/`, shared API/event contracts, `apps/api/src/app.module.ts`, root manifests, `pnpm-lock.yaml`, `docker-compose.yml`, environment templates and CI have one named owner at a time.
+- Domain agents may add files inside their owned domain; do not expand scope into another workstream without coordinator approval.
+
+## Runtime isolation
+
+Every writer must use independent mutable runtime resources:
+- Install dependencies within that worktree; do not symlink another worktree's `node_modules`.
+- Give each worktree a unique `DATABASE_URL`, PostgreSQL host port, Redis host port, API port, customer-web port and partner-web port.
+- Use a unique Docker Compose project name (for example `eatwave-agent-delivery`). Compose project names isolate container and volume names; host ports must still be unique.
+- Never point two writers at the same writable database or share a migration run.
+- Keep `.env` local to each worktree and never commit credentials.
+- A shared pnpm package store is acceptable; mutable database volumes, generated clients and running services are not shared.
+
+## Completion and handoff
+
+Before handing off:
+1. Run focused tests for the owned domain.
+2. Run `pnpm typecheck`, `pnpm lint`, `pnpm test` and `pnpm build` where feasible; report any unavailable or failing command honestly.
+3. Inspect `git diff` and ensure no out-of-scope files changed.
+4. Push the feature branch and open a narrow PR against `main`.
+5. Report changed paths, tests and results, contracts touched, integration notes, skipped work and residual risks.
+
+Only the user may authorize a merge. A green CI run is evidence, not merge permission. Resolve conflicts in the owning PR/worktree; never edit another agent's worktree. Remove a worktree only after its branch is merged or abandoned.
