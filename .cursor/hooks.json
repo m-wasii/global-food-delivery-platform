@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "python .cursor/hooks/session-start-worktree.py"
+      }
+    ],
+    "preToolUse": [
+      {
+        "command": "python .cursor/hooks/require-worktree-write.py",
+        "matcher": "Write|StrReplace|Delete|EditNotebook",
+        "failClosed": true
+      }
+    ]
+  }
+}
