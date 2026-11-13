@@ -10,6 +10,8 @@ coverage/
 .idea/
 .vscode/
 .cursor/
+!.cursor/
+!.cursor/**
 .agents/
 .claude/
 .windsurf/
@@ -18,6 +20,7 @@ skills-lock.json
 dist/
 .next/
 out/
+.worktrees/
 AGENTS.md
 CLAUDE.md
 next-env.d.ts
