@@ -136,8 +136,8 @@ def main() -> int:
             "permission": "deny",
             "agent_message": (
                 "Blocked a write in the primary Eatwave checkout. Create an isolated "
-                "Git worktree and move the writer root there before editing:\\n"
-                "  .\\\\scripts\\\\new-worktree.ps1 feat/<short-scope>\\n"
+                "Git worktree and move the writer root there before editing:\n"
+                "  .\\scripts\\new-worktree.ps1 feat/<short-scope>\n"
                 "Do not bypass this guard with shell redirection or another write path. "
                 "Escape hatch (only for deliberate repository bootstrap): "
                 "EATWAVE_ALLOW_PRIMARY_WRITES=1"
