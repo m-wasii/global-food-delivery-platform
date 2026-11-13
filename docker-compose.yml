@@ -19,7 +19,6 @@ services:
   redis:
     image: redis:8-alpine
     restart: unless-stopped
-    environment: {}
     ports:
       - "${REDIS_HOST_PORT:-6379}:6379"
     volumes:
