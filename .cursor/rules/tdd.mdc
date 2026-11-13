@@ -1,0 +1,16 @@
+---
+description: Follow the repository TDD workflow for behavior changes and bug fixes
+alwaysApply: true
+---
+
+# Test-driven development
+
+Follow `docs/development/tdd.md` for production behavior and bug fixes:
+
+1. Write one focused failing test.
+2. Run it and confirm it fails for the intended reason.
+3. Implement the smallest change that makes it pass.
+4. Re-run the focused test.
+5. Refactor while keeping tests green.
+
+Do not weaken or delete meaningful tests to make a change pass. Prefer testing real domain logic and mock only I/O boundaries. Add contract tests when crossing domain/API/event boundaries. If a required test cannot run, explain why and provide the strongest available verification evidence.
