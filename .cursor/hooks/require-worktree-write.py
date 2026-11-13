@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -14,6 +15,7 @@ ALLOWLIST = {
     Path(".cursor/hooks/session-start-worktree.py"),
     Path(".cursor/hooks/require-worktree-write.py"),
     Path(".cursor/rules/parallel-agent-worktrees.mdc"),
+    Path(".cursor/rules/agent-coordination.mdc"),
     Path(".cursor/rules/git-branching.mdc"),
     Path(".cursor/rules/tdd.mdc"),
     Path(".gitignore"),
@@ -52,19 +54,34 @@ def repo_root_from_cwd(cwd: str | None) -> Path | None:
     return None
 
 
-def is_under(path: Path, root: Path) -> bool:
+def git_path(cwd: Path, argument: str) -> Path | None:
     try:
-        path.resolve().relative_to(root.resolve())
-        return True
-    except (OSError, ValueError):
-        return False
+        completed = subprocess.run(
+            ["git", "rev-parse", argument],
+            cwd=cwd,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return None
+    if completed.returncode != 0:
+        return None
+    value = completed.stdout.strip()
+    if not value:
+        return None
+    path = Path(value)
+    return (cwd / path).resolve() if not path.is_absolute() else path.resolve()
+
+
+def is_linked_worktree(cwd: Path) -> bool:
+    git_dir = git_path(cwd, "--git-dir")
+    common_dir = git_path(cwd, "--git-common-dir")
+    return bool(git_dir and common_dir and git_dir != common_dir)
 
 
 def main() -> int:
     if os.environ.get("EATWAVE_ALLOW_PRIMARY_WRITES") == "1":
-        emit({"permission": "allow"})
-        return 0
-    if os.environ.get("EATWAVE_ENFORCE_WORKTREE") != "1":
         emit({"permission": "allow"})
         return 0
 
@@ -74,9 +91,16 @@ def main() -> int:
         emit({"permission": "allow"})
         return 0
 
-    cwd = data.get("cwd")
-    root = repo_root_from_cwd(cwd)
+    cwd_value = data.get("cwd")
+    cwd = Path(cwd_value).resolve() if isinstance(cwd_value, str) and cwd_value else Path.cwd().resolve()
+    root = repo_root_from_cwd(str(cwd))
     if root is None:
+        emit({"permission": "allow"})
+        return 0
+
+    # A genuine linked worktree is the safe write area. This check runs for
+    # every write, including agent sessions that did not run sessionStart.
+    if is_linked_worktree(cwd):
         emit({"permission": "allow"})
         return 0
 
@@ -92,13 +116,14 @@ def main() -> int:
 
     for path in paths:
         if not path.is_absolute():
-            path = (Path(cwd) / path) if cwd else (root / path)
-        if not is_under(path, root):
-            continue
+            path = cwd / path
 
         try:
             relative = path.resolve().relative_to(root.resolve())
-        except (OSError, ValueError):
+        except ValueError:
+            # External paths are outside this repository's write policy.
+            continue
+        except OSError:
             emit({"permission": "deny", "user_message": "Could not safely resolve write path."})
             return 0
 
@@ -111,8 +136,9 @@ def main() -> int:
             "permission": "deny",
             "agent_message": (
                 "Blocked a write in the primary Eatwave checkout. Create an isolated "
-                "worktree and move the writer root there before editing:\n"
-                "  .\\scripts\\new-worktree.ps1 feat/<short-scope>\n"
+                "Git worktree and move the writer root there before editing:\\n"
+                "  .\\\\scripts\\\\new-worktree.ps1 feat/<short-scope>\\n"
+                "Do not bypass this guard with shell redirection or another write path. "
                 "Escape hatch (only for deliberate repository bootstrap): "
                 "EATWAVE_ALLOW_PRIMARY_WRITES=1"
             ),
@@ -128,7 +154,6 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except Exception as exc:
-        sys.stderr.write(f"Eatwave write-guard hook error: {exc}\n")
-        # The hook is configured failClosed by Cursor.
+        sys.stderr.write(f"Eatwave write-guard hook error: {exc}\\n")
         emit({"permission": "deny", "user_message": "Write guard failed; inspect Cursor hook output."})
         raise SystemExit(0)
