@@ -1,0 +1,15 @@
+---
+description: Branch-based implementation and user-controlled merge authority
+alwaysApply: true
+---
+
+# Git branching
+
+- Never commit feature, fix, refactor or documentation implementation directly to `main`.
+- Create a descriptive branch from the latest `origin/main` inside its own Git worktree.
+- Push with `git push -u origin <branch>` and open a PR to `main`.
+- Keep PRs narrow and aligned to one independently reviewable work package.
+- Do not force-push shared branches or reuse another agent's branch.
+- Do not merge without the user's explicit instruction. CI passing does not imply permission to merge.
+- If CI fails, diagnose and fix within the owning worktree; do not merge red checks.
+- The coordinator reviews integration, shared contracts, migration ordering and end-to-end acceptance, then asks the user for merge approval.
