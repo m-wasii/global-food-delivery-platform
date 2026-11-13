@@ -154,6 +154,6 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except Exception as exc:
-        sys.stderr.write(f"Eatwave write-guard hook error: {exc}\\n")
+        sys.stderr.write(f"Eatwave write-guard hook error: {exc}\n")
         emit({"permission": "deny", "user_message": "Write guard failed; inspect Cursor hook output."})
         raise SystemExit(0)
